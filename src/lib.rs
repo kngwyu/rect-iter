@@ -4,12 +4,33 @@
 
 extern crate euclid;
 extern crate num_traits;
+#[cfg(feature = "serde")]
+#[macro_use]
+extern crate serde;
 use std::ops::Range;
-use euclid::{rect, TypedRect};
+use euclid::{rect, TypedPoint2D, TypedRect, TypedVector2D};
 use num_traits::Num;
 use num_traits::cast::ToPrimitive;
+
+pub trait ToPoint<T> {
+    fn to_point(&self) -> (T, T);
+}
+
+impl<T: Copy, U> ToPoint<T> for TypedPoint2D<T, U> {
+    fn to_point(&self) -> (T, T) {
+        (self.x, self.y)
+    }
+}
+
+impl<T: Copy, U> ToPoint<T> for TypedVector2D<T, U> {
+    fn to_point(&self) -> (T, T) {
+        (self.x, self.y)
+    }
+}
+
 /// RectRange is
 #[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct RectRange<T: Num + PartialOrd> {
     x_range: Range<T>,
     y_range: Range<T>,
@@ -77,6 +98,11 @@ impl<T: Num + PartialOrd + Copy> RectRange<T> {
             self.x_range.end - orig_x,
             self.y_range.end - orig_y,
         )
+    }
+    pub fn from_corners<P: ToPoint<T>>(lu: P, rd: P) -> Option<RectRange<T>> {
+        let lu = lu.to_point();
+        let rd = rd.to_point();
+        RectRange::new(lu.0, lu.1, rd.0, rd.1)
     }
 }
 
