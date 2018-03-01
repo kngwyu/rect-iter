@@ -16,20 +16,26 @@ pub trait ToPoint<T> {
     fn to_point(&self) -> (T, T);
 }
 
-impl<T: Copy, U> ToPoint<T> for TypedPoint2D<T, U> {
+impl<T: Clone, U> ToPoint<T> for TypedPoint2D<T, U> {
     fn to_point(&self) -> (T, T) {
-        (self.x, self.y)
+        (self.x.clone(), self.y.clone())
     }
 }
 
-impl<T: Copy, U> ToPoint<T> for TypedVector2D<T, U> {
+impl<T: Clone, U> ToPoint<T> for TypedVector2D<T, U> {
     fn to_point(&self) -> (T, T) {
-        (self.x, self.y)
+        (self.x.clone(), self.y.clone())
     }
 }
 
-/// RectRange is
-#[derive(Clone, PartialEq, Eq, Hash)]
+impl<T: Clone> ToPoint<T> for (T, T) {
+    fn to_point(&self) -> (T, T) {
+        self.clone()
+    }
+}
+
+/// RectRange is rectangle representation using `std::ops::Range`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct RectRange<T: Num + PartialOrd> {
     x_range: Range<T>,
@@ -52,16 +58,22 @@ impl<T: Num + PartialOrd> RectRange<T> {
             y_range: y,
         })
     }
+    pub fn get_x(&self) -> &Range<T> {
+        &self.x_range
+    }
+    pub fn get_y(&self) -> &Range<T> {
+        &self.y_range
+    }
     fn range_ok(r: &Range<T>) -> bool {
         r.start < r.end
     }
 }
 
 impl<T: Num + PartialOrd + Clone> RectRange<T> {
-    pub fn x(&self) -> Range<T> {
+    pub fn cloned_x(&self) -> Range<T> {
         self.x_range.clone()
     }
-    pub fn y(&self) -> Range<T> {
+    pub fn cloned_y(&self) -> Range<T> {
         self.y_range.clone()
     }
     pub fn slide(self, t: (T, T)) -> RectRange<T> {
@@ -77,6 +89,25 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
     pub fn ylen(&self) -> T {
         let r = self.y_range.clone();
         r.end - r.start
+    }
+    pub fn intersects(&self, other: &RectRange<T>) -> bool {
+        let not_inter = |r1: &Range<T>, r2: &Range<T>| r1.end <= r2.start || r2.end <= r1.start;
+        !(not_inter(&self.x_range, &other.x_range) || not_inter(&self.y_range, &other.y_range))
+    }
+    pub fn intersection(&self, other: &RectRange<T>) -> Option<RectRange<T>> {
+        let inter = |r1: Range<T>, r2: Range<T>| {
+            let s = max(r1.start, r2.start);
+            let e = min(r1.end, r2.end);
+            if s >= e {
+                None
+            } else {
+                Some(s..e)
+            }
+        };
+        Some(RectRange {
+            x_range: inter(self.x_range.clone(), other.x_range.clone())?,
+            y_range: inter(self.y_range.clone(), other.y_range.clone())?,
+        })
     }
 }
 
@@ -164,6 +195,22 @@ pub trait TupleGetMut: XyGetMut {
     }
 }
 
+fn min<T: Clone + PartialOrd>(x: T, y: T) -> T {
+    if x <= y {
+        x
+    } else {
+        y
+    }
+}
+
+fn max<T: Clone + PartialOrd>(x: T, y: T) -> T {
+    if x >= y {
+        x
+    } else {
+        y
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -174,5 +221,30 @@ mod tests {
         for (i, (x, y)) in r.into_iter().enumerate() {
             assert_eq!(correct[i], (x, y));
         }
+    }
+    #[test]
+    fn test_intersects_true() {
+        let r1 = RectRange::from_ranges(4..7, 3..5).unwrap();
+        let r2 = RectRange::from_ranges(6..10, 4..6).unwrap();
+        assert_eq!(r1.intersects(&r2), true)
+    }
+    #[test]
+    fn test_intersection_some() {
+        let r1 = RectRange::from_ranges(4..7, 3..5).unwrap();
+        let r2 = RectRange::from_ranges(6..10, 4..6).unwrap();
+        let inter = RectRange::from_ranges(6..7, 4..5).unwrap();
+        assert_eq!(r1.intersection(&r2).unwrap(), inter);
+    }
+    #[test]
+    fn test_intersects_false() {
+        let r1 = RectRange::from_ranges(4..7, 3..5).unwrap();
+        let r2 = RectRange::from_ranges(7..9, 5..6).unwrap();
+        assert_eq!(r1.intersects(&r2), false)
+    }
+    #[test]
+    fn test_intersection_none() {
+        let r1 = RectRange::from_ranges(4..7, 3..5).unwrap();
+        let r2 = RectRange::from_ranges(7..9, 5..6).unwrap();
+        assert!(r1.intersection(&r2).is_none());
     }
 }
