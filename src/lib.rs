@@ -5,7 +5,7 @@
 extern crate euclid;
 extern crate num_traits;
 use std::ops::Range;
-use euclid::TypedRect;
+use euclid::{rect, TypedRect};
 use num_traits::Num;
 use num_traits::cast::ToPrimitive;
 /// RectRange is
@@ -49,6 +49,14 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
             y_range: self.y_range.start + t.1.clone()..self.y_range.end + t.1,
         }
     }
+    pub fn xlen(&self) -> T {
+        let r = self.x_range.clone();
+        r.end - r.start
+    }
+    pub fn ylen(&self) -> T {
+        let r = self.y_range.clone();
+        r.end - r.start
+    }
 }
 
 impl<T: Num + PartialOrd + Copy> RectRange<T> {
@@ -58,6 +66,16 @@ impl<T: Num + PartialOrd + Copy> RectRange<T> {
         RectRange::from_ranges(
             orig_x..orig_x + rect.size.width,
             orig_y..orig_y + rect.size.height,
+        )
+    }
+    pub fn to_rect<U>(&self) -> TypedRect<T, U> {
+        let orig_x = self.x_range.start;
+        let orig_y = self.y_range.start;
+        rect(
+            orig_x,
+            orig_y,
+            self.x_range.end - orig_x,
+            self.y_range.end - orig_y,
         )
     }
 }
