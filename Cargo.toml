@@ -1,0 +1,8 @@
+[package]
+name = "rect-iter"
+version = "0.0.1"
+authors = ["kngwyu <yuji.kngw.80s.revive@gmail.com>"]
+
+[dependencies]
+num-traits = "0.2.0"
+euclid = "0.17.0"
