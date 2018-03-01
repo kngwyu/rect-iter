@@ -137,6 +137,44 @@ impl<T: Num + PartialOrd + Copy> RectRange<T> {
     }
 }
 
+macro_rules! __cast_impl {
+    ($method:ident, $x:expr, $y:expr) => {
+        Some(RectRange {
+            x_range: $x.start.$method()?..$x.end.$method()?,
+            y_range: $y.start.$method()?..$y.end.$method()?
+        })
+    }
+}
+impl<T: Num + PartialOrd + ToPrimitive + Copy> RectRange<T> {
+    pub fn to_u8(self) -> Option<RectRange<u8>> {
+        __cast_impl!(to_u8, self.x_range, self.y_range)
+    }
+    pub fn to_u16(self) -> Option<RectRange<u16>> {
+        __cast_impl!(to_u16, self.x_range, self.y_range)
+    }
+    pub fn to_u32(self) -> Option<RectRange<u32>> {
+        __cast_impl!(to_u32, self.x_range, self.y_range)
+    }
+    pub fn to_u64(self) -> Option<RectRange<u64>> {
+        __cast_impl!(to_u64, self.x_range, self.y_range)
+    }
+    pub fn to_i8(self) -> Option<RectRange<i8>> {
+        __cast_impl!(to_i8, self.x_range, self.y_range)
+    }
+    pub fn to_i16(self) -> Option<RectRange<i16>> {
+        __cast_impl!(to_i16, self.x_range, self.y_range)
+    }
+    pub fn to_i32(self) -> Option<RectRange<i32>> {
+        __cast_impl!(to_i32, self.x_range, self.y_range)
+    }
+    pub fn to_i64(self) -> Option<RectRange<i64>> {
+        __cast_impl!(to_i64, self.x_range, self.y_range)
+    }
+    pub fn to_usize(self) -> Option<RectRange<usize>> {
+        __cast_impl!(to_usize, self.x_range, self.y_range)
+    }
+}
+
 impl<T: Num + PartialOrd + Copy> IntoIterator for RectRange<T> {
     type Item = (T, T);
     type IntoIter = RectIter<T>;
