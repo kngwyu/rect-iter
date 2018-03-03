@@ -1,13 +1,18 @@
 //! This crate provides simple Iterator for enumerating ractangle.
 //!
 //! # Examples
+#![feature(conservative_impl_trait, universal_impl_trait)]
+#![feature(iterator_try_fold)]
 extern crate euclid;
+extern crate image;
 extern crate num_traits;
 #[cfg(feature = "serde")]
 #[macro_use]
 extern crate serde;
-use std::ops::Range;
+
+use std::ops::{Deref, DerefMut, Range};
 use euclid::{rect, TypedPoint2D, TypedRect, TypedVector2D};
+use image::{ImageBuffer, Pixel};
 use num_traits::Num;
 use num_traits::cast::ToPrimitive;
 
@@ -271,57 +276,118 @@ impl<D> GetMut2D for Vec<Vec<D>> {
     }
 }
 
-macro_rules! try_bool {
-    ($e:expr) => {
-        match $e {
-            Some(a) => a,
-            None => return false,
+impl<P, C> Get2D for ImageBuffer<P, C>
+where
+    P: Pixel + 'static,
+    P::Subpixel: 'static,
+    C: Deref<Target = [P::Subpixel]>,
+{
+    type Item = P;
+    fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item> {
+        let (x, y) = (x.to_u32()?, y.to_u32()?);
+        if x >= self.width() || y >= self.height() {
+            None
+        } else {
+            Some(self.get_pixel(x, y))
         }
     }
 }
 
-pub fn copy_rect_conv<S, D, T, U, I, J, F>(
-    source: &S,
-    dist: &mut D,
-    source_range: RectRange<I>,
-    dist_range: RectRange<J>,
-    convert: F,
-) -> bool
+impl<P, C> GetMut2D for ImageBuffer<P, C>
 where
-    S: Get2D<Item = T>,
-    D: GetMut2D<Item = U>,
+    P: Pixel + 'static,
+    P::Subpixel: 'static,
+    C: Deref<Target = [P::Subpixel]> + DerefMut,
+{
+    type Item = P;
+    fn get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T) -> Option<&mut Self::Item> {
+        let (x, y) = (x.to_u32()?, y.to_u32()?);
+        if x >= self.width() || y >= self.height() {
+            None
+        } else {
+            Some(self.get_pixel_mut(x, y))
+        }
+    }
+}
+
+pub fn copy_rect_conv<T, U, I, J>(
+    source: &impl Get2D<Item = T>,
+    dest: &mut impl GetMut2D<Item = U>,
+    source_range: RectRange<I>,
+    dest_range: RectRange<J>,
+    convert: impl Fn(&T) -> U,
+) -> Option<()>
+where
     I: Num + PartialOrd + ToPrimitive + Copy,
     J: Num + PartialOrd + ToPrimitive + Copy,
-    F: Fn(&T) -> U,
 {
     source_range
         .into_iter()
-        .zip(dist_range.into_iter())
-        .all(|(s, d)| {
-            *try_bool!(dist.get_mut_point(d)) = convert(try_bool!(source.get_point(s)));
-            true
+        .zip(dest_range.into_iter())
+        .try_for_each(|(s, d)| {
+            *dest.get_mut_point(d)? = convert(source.get_point(s)?);
+            Some(())
         })
 }
 
-pub fn copy_rect<S, D, T, I, J>(
-    source: &S,
-    dist: &mut D,
+pub fn copy_rect<T, I, J>(
+    source: &impl Get2D<Item = T>,
+    dest: &mut impl GetMut2D<Item = T>,
     source_range: RectRange<I>,
-    dist_range: RectRange<J>,
-) -> bool
+    dest_range: RectRange<J>,
+) -> Option<()>
 where
-    S: Get2D<Item = T>,
-    D: GetMut2D<Item = T>,
     T: Clone,
     I: Num + PartialOrd + ToPrimitive + Copy,
     J: Num + PartialOrd + ToPrimitive + Copy,
 {
     source_range
         .into_iter()
-        .zip(dist_range.into_iter())
-        .all(|(s, d)| {
-            *try_bool!(dist.get_mut_point(d)) = try_bool!(source.get_point(s)).clone();
-            true
+        .zip(dest_range.into_iter())
+        .try_for_each(|(s, d)| {
+            *dest.get_mut_point(d)? = source.get_point(s)?.clone();
+            Some(())
+        })
+}
+
+pub fn gen_rect_conv<D, T, U, I, J>(
+    source: &impl Get2D<Item = T>,
+    source_range: RectRange<I>,
+    dest_range: RectRange<J>,
+    convert: impl Fn(&T) -> U,
+) -> Option<D>
+where
+    D: GetMut2D<Item = U> + Default,
+    T: Clone,
+    I: Num + PartialOrd + ToPrimitive + Copy,
+    J: Num + PartialOrd + ToPrimitive + Copy,
+{
+    source_range
+        .into_iter()
+        .zip(dest_range.into_iter())
+        .try_fold(D::default(), |mut dest, (s, d)| {
+            *dest.get_mut_point(d)? = convert(source.get_point(s)?);
+            Some(dest)
+        })
+}
+
+pub fn gen_rect<D, T, I, J>(
+    source: &impl Get2D<Item = T>,
+    source_range: RectRange<I>,
+    dest_range: RectRange<J>,
+) -> Option<D>
+where
+    D: GetMut2D<Item = T> + Default,
+    T: Clone,
+    I: Num + PartialOrd + ToPrimitive + Copy,
+    J: Num + PartialOrd + ToPrimitive + Copy,
+{
+    source_range
+        .into_iter()
+        .zip(dest_range.into_iter())
+        .try_fold(D::default(), |mut dest, (s, d)| {
+            *dest.get_mut_point(d)? = source.get_point(s)?.clone();
+            Some(dest)
         })
 }
 

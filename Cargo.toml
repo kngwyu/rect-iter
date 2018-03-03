@@ -5,8 +5,9 @@ authors = ["kngwyu <yuji.kngw.80s.revive@gmail.com>"]
 keywords = ["geometry"]
 
 [dependencies]
-num-traits = "0.2.0"
-euclid = "0.17.0"
+num-traits = "0.2"
+euclid = "0.17"
+image = "0.18"
 
 [dependencies.serde]
 version = "1.0"
