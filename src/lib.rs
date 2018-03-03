@@ -135,6 +135,13 @@ impl<T: Num + PartialOrd + Copy> RectRange<T> {
         let rd = rd.to_point();
         RectRange::new(lu.0, lu.1, rd.0, rd.1)
     }
+    pub fn iter(&self) -> RectIter<T> {
+        RectIter {
+            x: self.x_range.start,
+            y: self.y_range.start,
+            range: self.clone(),
+        }
+    }
 }
 
 macro_rules! __cast_impl {
