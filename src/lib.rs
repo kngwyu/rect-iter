@@ -1,7 +1,6 @@
 //! This crate provides simple Iterator for enumerating ractangle.
 //!
 //! # Examples
-
 extern crate euclid;
 extern crate num_traits;
 #[cfg(feature = "serde")]
@@ -76,7 +75,8 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
     pub fn cloned_y(&self) -> Range<T> {
         self.y_range.clone()
     }
-    pub fn slide(self, t: (T, T)) -> RectRange<T> {
+    pub fn slide<P: ToPoint<T>>(self, t: P) -> RectRange<T> {
+        let t = t.to_point();
         RectRange {
             x_range: self.x_range.start + t.0.clone()..self.x_range.end + t.0,
             y_range: self.y_range.start + t.1.clone()..self.y_range.end + t.1,
@@ -140,6 +140,13 @@ impl<T: Num + PartialOrd + Copy> RectRange<T> {
             x: self.x_range.start,
             y: self.y_range.start,
             range: self.clone(),
+        }
+    }
+    pub fn scale(self, sc: T) -> RectRange<T> {
+        let scale_impl = |r: Range<T>, s| r.start * s..r.end * s;
+        RectRange {
+            x_range: scale_impl(self.x_range, sc),
+            y_range: scale_impl(self.y_range, sc),
         }
     }
 }
@@ -218,26 +225,104 @@ impl<T: Num + PartialOrd + Copy> Iterator for RectIter<T> {
     }
 }
 
-pub trait XyGet {
+pub trait Get2D {
     type Item;
-    fn xy_get<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item>;
-}
-
-pub trait TupleGet: XyGet {
-    fn tuple_get<T: ToPrimitive>(&self, t: (T, T)) -> Option<&Self::Item> {
-        self.xy_get(t.0, t.1)
+    fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item>;
+    fn get_point<T: ToPrimitive, P: ToPoint<T>>(&self, t: P) -> Option<&Self::Item> {
+        let t = t.to_point();
+        self.get_xy(t.0, t.1)
     }
 }
 
-pub trait XyGetMut {
+pub trait GetMut2D {
     type Item;
-    fn xy_get_mut<T: ToPrimitive>(&mut self, x: T, y: T) -> Option<&mut Self::Item>;
+    fn get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T) -> Option<&mut Self::Item>;
+    fn get_mut_point<T: ToPrimitive, P: ToPoint<T>>(&mut self, t: P) -> Option<&mut Self::Item> {
+        let t = t.to_point();
+        self.get_mut_xy(t.0, t.1)
+    }
 }
 
-pub trait TupleGetMut: XyGetMut {
-    fn tuple_get_mut<T: ToPrimitive>(&mut self, t: (T, T)) -> Option<&mut Self::Item> {
-        self.xy_get_mut(t.0, t.1)
+impl<'a, D> Get2D for &'a [&'a [D]] {
+    type Item = D;
+    fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item> {
+        Some(&self[y.to_usize()?][x.to_usize()?])
     }
+}
+
+impl<'a, D> GetMut2D for &'a mut [&'a mut [D]] {
+    type Item = D;
+    fn get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T) -> Option<&mut Self::Item> {
+        Some(&mut self[y.to_usize()?][x.to_usize()?])
+    }
+}
+
+impl<D> Get2D for Vec<Vec<D>> {
+    type Item = D;
+    fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item> {
+        Some(self.get(y.to_usize()?)?.get(x.to_usize()?)?)
+    }
+}
+
+impl<D> GetMut2D for Vec<Vec<D>> {
+    type Item = D;
+    fn get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T) -> Option<&mut Self::Item> {
+        Some(self.get_mut(y.to_usize()?)?.get_mut(x.to_usize()?)?)
+    }
+}
+
+macro_rules! try_bool {
+    ($e:expr) => {
+        match $e {
+            Some(a) => a,
+            None => return false,
+        }
+    }
+}
+
+pub fn copy_rect_conv<S, D, T, U, I, J, F>(
+    source: &S,
+    dist: &mut D,
+    source_range: RectRange<I>,
+    dist_range: RectRange<J>,
+    convert: F,
+) -> bool
+where
+    S: Get2D<Item = T>,
+    D: GetMut2D<Item = U>,
+    I: Num + PartialOrd + ToPrimitive + Copy,
+    J: Num + PartialOrd + ToPrimitive + Copy,
+    F: Fn(&T) -> U,
+{
+    source_range
+        .into_iter()
+        .zip(dist_range.into_iter())
+        .all(|(s, d)| {
+            *try_bool!(dist.get_mut_point(d)) = convert(try_bool!(source.get_point(s)));
+            true
+        })
+}
+
+pub fn copy_rect<S, D, T, I, J>(
+    source: &S,
+    dist: &mut D,
+    source_range: RectRange<I>,
+    dist_range: RectRange<J>,
+) -> bool
+where
+    S: Get2D<Item = T>,
+    D: GetMut2D<Item = T>,
+    T: Clone,
+    I: Num + PartialOrd + ToPrimitive + Copy,
+    J: Num + PartialOrd + ToPrimitive + Copy,
+{
+    source_range
+        .into_iter()
+        .zip(dist_range.into_iter())
+        .all(|(s, d)| {
+            *try_bool!(dist.get_mut_point(d)) = try_bool!(source.get_point(s)).clone();
+            true
+        })
 }
 
 fn min<T: Clone + PartialOrd>(x: T, y: T) -> T {
