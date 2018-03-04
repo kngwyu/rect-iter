@@ -1,8 +1,7 @@
 //! This crate provides simple Iterator for enumerating ractangle.
 //!
 //! # Examples
-#![feature(conservative_impl_trait, universal_impl_trait)]
-#![feature(iterator_try_fold)]
+#![feature(conservative_impl_trait, universal_impl_trait, iterator_try_fold)]
 extern crate euclid;
 extern crate image;
 extern crate num_traits;
@@ -248,20 +247,6 @@ pub trait GetMut2D {
     }
 }
 
-impl<'a, D> Get2D for &'a [&'a [D]] {
-    type Item = D;
-    fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item> {
-        Some(&self[y.to_usize()?][x.to_usize()?])
-    }
-}
-
-impl<'a, D> GetMut2D for &'a mut [&'a mut [D]] {
-    type Item = D;
-    fn get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T) -> Option<&mut Self::Item> {
-        Some(&mut self[y.to_usize()?][x.to_usize()?])
-    }
-}
-
 impl<D> Get2D for Vec<Vec<D>> {
     type Item = D;
     fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item> {
@@ -442,5 +427,11 @@ mod tests {
         let r1 = RectRange::from_ranges(4..7, 3..5).unwrap();
         let r2 = RectRange::from_ranges(7..9, 5..6).unwrap();
         assert!(r1.intersection(&r2).is_none());
+    }
+    #[test]
+    fn test_get_vec() {
+        let a = vec![vec![3; 5]; 7];
+        assert_eq!(Some(&3), a.get_xy(3, 3));
+        assert_eq!(None, a.get_xy(5, 7));
     }
 }
