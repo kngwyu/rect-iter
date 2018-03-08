@@ -7,7 +7,7 @@ keywords = ["geometry"]
 [dependencies]
 num-traits = "0.2"
 euclid = "0.17"
-image = "0.18"
+image = {version = "0.18", optional = true}
 
 [dependencies.serde]
 version = "1.0"

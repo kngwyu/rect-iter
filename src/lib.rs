@@ -3,6 +3,7 @@
 //! # Examples
 #![feature(conservative_impl_trait, universal_impl_trait, iterator_try_fold)]
 extern crate euclid;
+#[cfg(feature = "image")]
 extern crate image;
 extern crate num_traits;
 #[cfg(feature = "serde")]
@@ -11,9 +12,11 @@ extern crate serde;
 
 use std::ops::{Deref, DerefMut, Range};
 use euclid::{rect, TypedPoint2D, TypedRect, TypedVector2D};
-use image::{ImageBuffer, Pixel};
 use num_traits::Num;
 use num_traits::cast::ToPrimitive;
+
+#[cfg(feature = "image")]
+use image::{ImageBuffer, Pixel};
 
 pub trait ToPoint<T> {
     fn to_point(&self) -> (T, T);
@@ -156,12 +159,12 @@ impl<T: Num + PartialOrd + Copy> RectRange<T> {
 }
 
 macro_rules! __cast_impl {
-    ($method:ident, $x:expr, $y:expr) => {
+    ($method: ident, $x: expr, $y: expr) => {
         Some(RectRange {
             x_range: $x.start.$method()?..$x.end.$method()?,
-            y_range: $y.start.$method()?..$y.end.$method()?
+            y_range: $y.start.$method()?..$y.end.$method()?,
         })
-    }
+    };
 }
 impl<T: Num + PartialOrd + ToPrimitive + Copy> RectRange<T> {
     pub fn to_u8(self) -> Option<RectRange<u8>> {
@@ -261,40 +264,6 @@ impl<D> GetMut2D for Vec<Vec<D>> {
     }
 }
 
-impl<P, C> Get2D for ImageBuffer<P, C>
-where
-    P: Pixel + 'static,
-    P::Subpixel: 'static,
-    C: Deref<Target = [P::Subpixel]>,
-{
-    type Item = P;
-    fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item> {
-        let (x, y) = (x.to_u32()?, y.to_u32()?);
-        if x >= self.width() || y >= self.height() {
-            None
-        } else {
-            Some(self.get_pixel(x, y))
-        }
-    }
-}
-
-impl<P, C> GetMut2D for ImageBuffer<P, C>
-where
-    P: Pixel + 'static,
-    P::Subpixel: 'static,
-    C: Deref<Target = [P::Subpixel]> + DerefMut,
-{
-    type Item = P;
-    fn get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T) -> Option<&mut Self::Item> {
-        let (x, y) = (x.to_u32()?, y.to_u32()?);
-        if x >= self.width() || y >= self.height() {
-            None
-        } else {
-            Some(self.get_pixel_mut(x, y))
-        }
-    }
-}
-
 pub fn copy_rect_conv<T, U, I, J>(
     source: &impl Get2D<Item = T>,
     dest: &mut impl GetMut2D<Item = U>,
@@ -337,6 +306,7 @@ where
 
 pub fn gen_rect_conv<D, T, U, I, J>(
     source: &impl Get2D<Item = T>,
+    gen_dist: impl Fn() -> D,
     source_range: RectRange<I>,
     dest_range: RectRange<J>,
     convert: impl Fn(&T) -> U,
@@ -350,7 +320,7 @@ where
     source_range
         .into_iter()
         .zip(dest_range.into_iter())
-        .try_fold(D::default(), |mut dest, (s, d)| {
+        .try_fold(gen_dist(), |mut dest, (s, d)| {
             *dest.get_mut_point(d)? = convert(source.get_point(s)?);
             Some(dest)
         })
@@ -358,6 +328,7 @@ where
 
 pub fn gen_rect<D, T, I, J>(
     source: &impl Get2D<Item = T>,
+    gen_dist: impl Fn() -> D,
     source_range: RectRange<I>,
     dest_range: RectRange<J>,
 ) -> Option<D>
@@ -370,10 +341,46 @@ where
     source_range
         .into_iter()
         .zip(dest_range.into_iter())
-        .try_fold(D::default(), |mut dest, (s, d)| {
+        .try_fold(gen_dist(), |mut dest, (s, d)| {
             *dest.get_mut_point(d)? = source.get_point(s)?.clone();
             Some(dest)
         })
+}
+
+#[cfg(feature = "image")]
+impl<P, C> Get2D for ImageBuffer<P, C>
+where
+    P: Pixel + 'static,
+    P::Subpixel: 'static,
+    C: Deref<Target = [P::Subpixel]>,
+{
+    type Item = P;
+    fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item> {
+        let (x, y) = (x.to_u32()?, y.to_u32()?);
+        if x >= self.width() || y >= self.height() {
+            None
+        } else {
+            Some(self.get_pixel(x, y))
+        }
+    }
+}
+
+#[cfg(feature = "image")]
+impl<P, C> GetMut2D for ImageBuffer<P, C>
+where
+    P: Pixel + 'static,
+    P::Subpixel: 'static,
+    C: Deref<Target = [P::Subpixel]> + DerefMut,
+{
+    type Item = P;
+    fn get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T) -> Option<&mut Self::Item> {
+        let (x, y) = (x.to_u32()?, y.to_u32()?);
+        if x >= self.width() || y >= self.height() {
+            None
+        } else {
+            Some(self.get_pixel_mut(x, y))
+        }
+    }
 }
 
 fn min<T: Clone + PartialOrd>(x: T, y: T) -> T {
@@ -433,5 +440,21 @@ mod tests {
         let a = vec![vec![3; 5]; 7];
         assert_eq!(Some(&3), a.get_xy(3, 3));
         assert_eq!(None, a.get_xy(5, 7));
+    }
+    #[test]
+    fn test_copy_rect() {
+        let mut a = vec![vec![3; 5]; 7];
+        let r1 = RectRange::from_ranges(3..5, 2..6).unwrap();
+        let b = vec![vec![80; 100]; 100];
+        copy_rect(&b, &mut a, r1.clone(), r1.clone()).unwrap();
+        r1.into_iter()
+            .for_each(|p| assert_eq!(a.get_point(p), Some(&80)));
+    }
+    #[test]
+    fn test_gen_rect() {
+        let r = RectRange::zero_start(5, 7).unwrap();
+        let b = vec![vec![80; 100]; 100];
+        let a = gen_rect(&b, || vec![vec![0; 5]; 7], r.clone(), r).unwrap();
+        assert_eq!(vec![vec![80; 5]; 7], a);
     }
 }
