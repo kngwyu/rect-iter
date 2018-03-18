@@ -3,17 +3,57 @@
 //! # Examples
 #![feature(conservative_impl_trait, universal_impl_trait, iterator_try_fold)]
 extern crate euclid;
+
 #[cfg(feature = "image")]
+#[allow(unused_imports)]
 extern crate image;
+
 extern crate num_traits;
+extern crate tuple_map;
+
 #[cfg(feature = "serde")]
+#[allow(unused_imports)]
 #[macro_use]
 extern crate serde;
 
+#[allow(unused_imports)]
 use std::ops::{Deref, DerefMut, Range};
+
 use euclid::{rect, TypedPoint2D, TypedRect, TypedVector2D};
 use num_traits::Num;
 use num_traits::cast::ToPrimitive;
+use tuple_map::TupleMap2;
+
+use std::error::Error;
+use std::fmt;
+
+#[derive(Copy, Clone, Debug, Default)]
+pub struct IndexError {
+    x: i64,
+    y: i64,
+}
+
+unsafe impl Send for IndexError {}
+unsafe impl Sync for IndexError {}
+
+impl IndexError {
+    fn new<T: ToPrimitive>(x: T, y: T) -> IndexError {
+        let (x, y) = (x, y).map(|i| i.to_i64().unwrap());
+        IndexError { x: x, y: y }
+    }
+}
+
+impl Error for IndexError {
+    fn description(&self) -> &str {
+        "Invalid Index access"
+    }
+}
+
+impl fmt::Display for IndexError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "Index Error at x: {}, y: {}", self.x, self.y)
+    }
+}
 
 #[cfg(feature = "image")]
 use image::{ImageBuffer, Pixel};
@@ -24,13 +64,13 @@ pub trait ToPoint<T> {
 
 impl<T: Clone, U> ToPoint<T> for TypedPoint2D<T, U> {
     fn to_point(&self) -> (T, T) {
-        (self.x.clone(), self.y.clone())
+        (&self.x, &self.y).map(|i| i.to_owned())
     }
 }
 
 impl<T: Clone, U> ToPoint<T> for TypedVector2D<T, U> {
     fn to_point(&self) -> (T, T) {
-        (self.x.clone(), self.y.clone())
+        (&self.x, &self.y).map(|i| i.to_owned())
     }
 }
 
@@ -41,6 +81,8 @@ impl<T: Clone> ToPoint<T> for (T, T) {
 }
 
 /// RectRange is rectangle representation using `std::ops::Range`.
+/// Diffrent from Range<T>, RectRange itself isn't a iterator, but
+/// has `IntoIterator` implementation and `iter` method(with 'clone').
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct RectRange<T: Num + PartialOrd> {
@@ -208,6 +250,7 @@ impl<T: Num + PartialOrd + Copy> IntoIterator for RectRange<T> {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct RectIter<T: Num + PartialOrd + Copy> {
     x: T,
     y: T,
@@ -239,6 +282,20 @@ pub trait Get2D {
         let t = t.to_point();
         self.get_xy(t.0, t.1)
     }
+    fn get_xy_r<T: ToPrimitive + Clone>(&self, x: T, y: T) -> Result<&Self::Item, IndexError> {
+        let r = self.get_xy(x.clone(), y.clone());
+        match r {
+            Some(p) => Ok(p),
+            None => Err(IndexError::new(x, y)),
+        }
+    }
+    fn get_point_r<T: ToPrimitive + Clone, P: ToPoint<T>>(
+        &self,
+        t: P,
+    ) -> Result<&Self::Item, IndexError> {
+        let t = t.to_point();
+        self.get_xy_r(t.0, t.1)
+    }
 }
 
 pub trait GetMut2D {
@@ -247,6 +304,24 @@ pub trait GetMut2D {
     fn get_mut_point<T: ToPrimitive, P: ToPoint<T>>(&mut self, t: P) -> Option<&mut Self::Item> {
         let t = t.to_point();
         self.get_mut_xy(t.0, t.1)
+    }
+    fn get_mut_xy_r<T: ToPrimitive + Clone>(
+        &mut self,
+        x: T,
+        y: T,
+    ) -> Result<&mut Self::Item, IndexError> {
+        let r = self.get_mut_xy(x.clone(), y.clone());
+        match r {
+            Some(p) => Ok(p),
+            None => Err(IndexError::new(x, y)),
+        }
+    }
+    fn get_mut_point_r<T: ToPrimitive + Clone, P: ToPoint<T>>(
+        &mut self,
+        t: P,
+    ) -> Result<&mut Self::Item, IndexError> {
+        let t = t.to_point();
+        self.get_mut_xy_r(t.0, t.1)
     }
 }
 
@@ -270,7 +345,7 @@ pub fn copy_rect_conv<T, U, I, J>(
     source_range: RectRange<I>,
     dest_range: RectRange<J>,
     convert: impl Fn(&T) -> U,
-) -> Option<()>
+) -> Result<(), IndexError>
 where
     I: Num + PartialOrd + ToPrimitive + Copy,
     J: Num + PartialOrd + ToPrimitive + Copy,
@@ -279,8 +354,8 @@ where
         .into_iter()
         .zip(dest_range.into_iter())
         .try_for_each(|(s, d)| {
-            *dest.get_mut_point(d)? = convert(source.get_point(s)?);
-            Some(())
+            *dest.get_mut_point_r(d)? = convert(source.get_point_r(s)?);
+            Ok(())
         })
 }
 
@@ -289,7 +364,7 @@ pub fn copy_rect<T, I, J>(
     dest: &mut impl GetMut2D<Item = T>,
     source_range: RectRange<I>,
     dest_range: RectRange<J>,
-) -> Option<()>
+) -> Result<(), IndexError>
 where
     T: Clone,
     I: Num + PartialOrd + ToPrimitive + Copy,
@@ -299,8 +374,8 @@ where
         .into_iter()
         .zip(dest_range.into_iter())
         .try_for_each(|(s, d)| {
-            *dest.get_mut_point(d)? = source.get_point(s)?.clone();
-            Some(())
+            *dest.get_mut_point_r(d)? = source.get_point_r(s)?.clone();
+            Ok(())
         })
 }
 
@@ -310,7 +385,7 @@ pub fn gen_rect_conv<D, T, U, I, J>(
     source_range: RectRange<I>,
     dest_range: RectRange<J>,
     convert: impl Fn(&T) -> U,
-) -> Option<D>
+) -> Result<D, IndexError>
 where
     D: GetMut2D<Item = U> + Default,
     T: Clone,
@@ -321,8 +396,8 @@ where
         .into_iter()
         .zip(dest_range.into_iter())
         .try_fold(gen_dist(), |mut dest, (s, d)| {
-            *dest.get_mut_point(d)? = convert(source.get_point(s)?);
-            Some(dest)
+            *dest.get_mut_point_r(d)? = convert(source.get_point_r(s)?);
+            Ok(dest)
         })
 }
 
@@ -331,7 +406,7 @@ pub fn gen_rect<D, T, I, J>(
     gen_dist: impl Fn() -> D,
     source_range: RectRange<I>,
     dest_range: RectRange<J>,
-) -> Option<D>
+) -> Result<D, IndexError>
 where
     D: GetMut2D<Item = T> + Default,
     T: Clone,
@@ -342,8 +417,8 @@ where
         .into_iter()
         .zip(dest_range.into_iter())
         .try_fold(gen_dist(), |mut dest, (s, d)| {
-            *dest.get_mut_point(d)? = source.get_point(s)?.clone();
-            Some(dest)
+            *dest.get_mut_point_r(d)? = source.get_point_r(s)?.clone();
+            Ok(dest)
         })
 }
 
