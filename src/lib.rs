@@ -1,6 +1,8 @@
 //! This crate provides simple Iterator for enumerating ractangle.
 //!
 #![feature(iterator_try_fold)]
+
+#[cfg(feature = "euclid")]
 extern crate euclid;
 
 #[cfg(feature = "image")]
