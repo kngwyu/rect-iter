@@ -1,7 +1,6 @@
 //! This crate provides simple Iterator for enumerating ractangle.
 //!
-//! # Examples
-#![feature(conservative_impl_trait, universal_impl_trait, iterator_try_fold)]
+#![feature(iterator_try_fold)]
 extern crate euclid;
 
 #[cfg(feature = "image")]
@@ -19,11 +18,14 @@ extern crate serde;
 #[allow(unused_imports)]
 use std::ops::{Deref, DerefMut, Range};
 
+#[cfg(feature = "euclid")]
 use euclid::{rect, TypedPoint2D, TypedRect, TypedVector2D};
-use num_traits::Num;
 use num_traits::cast::ToPrimitive;
+use num_traits::Num;
 use tuple_map::TupleMap2;
 
+#[cfg(feature = "image")]
+use image::{ImageBuffer, Pixel};
 use std::error::Error;
 use std::fmt;
 
@@ -55,19 +57,18 @@ impl fmt::Display for IndexError {
     }
 }
 
-#[cfg(feature = "image")]
-use image::{ImageBuffer, Pixel};
-
 pub trait ToPoint<T> {
     fn to_point(&self) -> (T, T);
 }
 
+#[cfg(feature = "image")]
 impl<T: Clone, U> ToPoint<T> for TypedPoint2D<T, U> {
     fn to_point(&self) -> (T, T) {
         (&self.x, &self.y).map(|i| i.to_owned())
     }
 }
 
+#[cfg(feature = "image")]
 impl<T: Clone, U> ToPoint<T> for TypedVector2D<T, U> {
     fn to_point(&self) -> (T, T) {
         (&self.x, &self.y).map(|i| i.to_owned())
@@ -161,6 +162,7 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
 }
 
 impl<T: Num + PartialOrd + Copy> RectRange<T> {
+    #[cfg(feature = "euclid")]
     pub fn from_rect<U>(rect: TypedRect<T, U>) -> Option<RectRange<T>> {
         let orig_x = rect.origin.x;
         let orig_y = rect.origin.y;
@@ -169,6 +171,7 @@ impl<T: Num + PartialOrd + Copy> RectRange<T> {
             orig_y..orig_y + rect.size.height,
         )
     }
+    #[cfg(feature = "euclid")]
     pub fn to_rect<U>(&self) -> TypedRect<T, U> {
         let orig_x = self.x_range.start;
         let orig_y = self.y_range.start;
@@ -201,7 +204,7 @@ impl<T: Num + PartialOrd + Copy> RectRange<T> {
 }
 
 macro_rules! __cast_impl {
-    ($method: ident, $x: expr, $y: expr) => {
+    ($method:ident, $x:expr, $y:expr) => {
         Some(RectRange {
             x_range: $x.start.$method()?..$x.end.$method()?,
             y_range: $y.start.$method()?..$y.end.$method()?,

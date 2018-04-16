@@ -6,14 +6,23 @@ keywords = ["geometry"]
 
 [dependencies]
 num-traits = "0.2"
-euclid = "0.17"
 tuple-map = "0.1.0"
-image = {version = "0.18", optional = true}
+
+[dependencies.euclid]
+version = "0.17"
+optional = true
+
+[dependencies.image]
+version = "0.18"
+optional = true
 
 [dependencies.serde]
 version = "1.0"
 features = ["serde_derive"]
 optional = true
+
+[features]
+default = ["euclid"]
 
 [package.metadata.docs.rs]
 all-features = true
