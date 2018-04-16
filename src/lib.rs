@@ -57,26 +57,30 @@ impl fmt::Display for IndexError {
     }
 }
 
-pub trait ToPoint<T> {
-    fn to_point(&self) -> (T, T);
+pub trait IntoTuple2<T> {
+    fn into_tuple2(self) -> (T, T);
 }
 
-#[cfg(feature = "image")]
-impl<T: Clone, U> ToPoint<T> for TypedPoint2D<T, U> {
-    fn to_point(&self) -> (T, T) {
-        (&self.x, &self.y).map(|i| i.to_owned())
+pub trait FromTuple2<T> {
+    fn from_tuple2(self) -> (T, T);
+}
+
+#[cfg(feature = "euclid")]
+impl<T: Clone, U> IntoTuple2<T> for TypedPoint2D<T, U> {
+    fn into_tuple2(self) -> (T, T) {
+        (self.x, self.y)
     }
 }
 
-#[cfg(feature = "image")]
-impl<T: Clone, U> ToPoint<T> for TypedVector2D<T, U> {
-    fn to_point(&self) -> (T, T) {
-        (&self.x, &self.y).map(|i| i.to_owned())
+#[cfg(feature = "euclid")]
+impl<T: Clone, U> IntoTuple2<T> for TypedVector2D<T, U> {
+    fn into_tuple2(self) -> (T, T) {
+        (self.x, self.y)
     }
 }
 
-impl<T: Clone> ToPoint<T> for (T, T) {
-    fn to_point(&self) -> (T, T) {
+impl<T: Clone> IntoTuple2<T> for (T, T) {
+    fn into_tuple2(self) -> (T, T) {
         self.clone()
     }
 }
@@ -125,8 +129,8 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
     pub fn cloned_y(&self) -> Range<T> {
         self.y_range.clone()
     }
-    pub fn slide<P: ToPoint<T>>(self, t: P) -> RectRange<T> {
-        let t = t.to_point();
+    pub fn slide<P: IntoTuple2<T>>(self, t: P) -> RectRange<T> {
+        let t = t.into_tuple2();
         RectRange {
             x_range: self.x_range.start + t.0.clone()..self.x_range.end + t.0,
             y_range: self.y_range.start + t.1.clone()..self.y_range.end + t.1,
@@ -182,9 +186,9 @@ impl<T: Num + PartialOrd + Copy> RectRange<T> {
             self.y_range.end - orig_y,
         )
     }
-    pub fn from_corners<P: ToPoint<T>>(lu: P, rd: P) -> Option<RectRange<T>> {
-        let lu = lu.to_point();
-        let rd = rd.to_point();
+    pub fn from_corners<P: IntoTuple2<T>>(lu: P, rd: P) -> Option<RectRange<T>> {
+        let lu = lu.into_tuple2();
+        let rd = rd.into_tuple2();
         RectRange::new(lu.0, lu.1, rd.0, rd.1)
     }
     pub fn iter(&self) -> RectIter<T> {
@@ -281,8 +285,8 @@ impl<T: Num + PartialOrd + Copy> Iterator for RectIter<T> {
 pub trait Get2D {
     type Item;
     fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item>;
-    fn get_point<T: ToPrimitive, P: ToPoint<T>>(&self, t: P) -> Option<&Self::Item> {
-        let t = t.to_point();
+    fn get_point<T: ToPrimitive, P: IntoTuple2<T>>(&self, t: P) -> Option<&Self::Item> {
+        let t = t.into_tuple2();
         self.get_xy(t.0, t.1)
     }
     fn get_xy_r<T: ToPrimitive + Clone>(&self, x: T, y: T) -> Result<&Self::Item, IndexError> {
@@ -292,11 +296,11 @@ pub trait Get2D {
             None => Err(IndexError::new(x, y)),
         }
     }
-    fn get_point_r<T: ToPrimitive + Clone, P: ToPoint<T>>(
+    fn get_point_r<T: ToPrimitive + Clone, P: IntoTuple2<T>>(
         &self,
         t: P,
     ) -> Result<&Self::Item, IndexError> {
-        let t = t.to_point();
+        let t = t.into_tuple2();
         self.get_xy_r(t.0, t.1)
     }
 }
@@ -304,8 +308,8 @@ pub trait Get2D {
 pub trait GetMut2D {
     type Item;
     fn get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T) -> Option<&mut Self::Item>;
-    fn get_mut_point<T: ToPrimitive, P: ToPoint<T>>(&mut self, t: P) -> Option<&mut Self::Item> {
-        let t = t.to_point();
+    fn get_mut_point<T: ToPrimitive, P: IntoTuple2<T>>(&mut self, t: P) -> Option<&mut Self::Item> {
+        let t = t.into_tuple2();
         self.get_mut_xy(t.0, t.1)
     }
     fn get_mut_xy_r<T: ToPrimitive + Clone>(
@@ -319,11 +323,11 @@ pub trait GetMut2D {
             None => Err(IndexError::new(x, y)),
         }
     }
-    fn get_mut_point_r<T: ToPrimitive + Clone, P: ToPoint<T>>(
+    fn get_mut_point_r<T: ToPrimitive + Clone, P: IntoTuple2<T>>(
         &mut self,
         t: P,
     ) -> Result<&mut Self::Item, IndexError> {
-        let t = t.to_point();
+        let t = t.into_tuple2();
         self.get_mut_xy_r(t.0, t.1)
     }
 }
