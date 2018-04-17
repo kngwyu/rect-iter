@@ -2,11 +2,16 @@
 name = "rect-iter"
 version = "0.0.1"
 authors = ["kngwyu <yuji.kngw.80s.revive@gmail.com>"]
-keywords = ["geometry"]
+repository = "https://github.com/kngwyu/rect-iter"
+homepage = "https://github.com/kngwyu/rect-iter"
+license = "MIT"
+readme = "README.md"
+keywords = ["geometry", "utility", "iterator"]
+description = "Iterator for 2D rectangle areas"
 
 [dependencies]
 num-traits = "0.2"
-tuple-map = "0.1.0"
+tuple-map = "0.3.0"
 
 [dependencies.euclid]
 version = "0.17"
