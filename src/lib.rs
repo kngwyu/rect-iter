@@ -1,5 +1,4 @@
 //! This crate provides simple Iterator for enumerating ractangle.
-//!
 #![feature(iterator_try_fold)]
 
 #[cfg(feature = "euclid")]
@@ -64,7 +63,7 @@ pub trait IntoTuple2<T> {
 }
 
 pub trait FromTuple2<T> {
-    fn from_tuple2(self) -> (T, T);
+    fn from_tuple2(tuple: (T, T)) -> Self;
 }
 
 #[cfg(feature = "euclid")]
