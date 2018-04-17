@@ -1,4 +1,4 @@
-//! This crate provides simple Iterator for enumerating ractangle.
+//! This crate provides simple Iterator for enumerating rectangle.
 #![feature(iterator_try_fold)]
 
 #[cfg(feature = "euclid")]
@@ -30,10 +30,11 @@ use image::{ImageBuffer, Pixel};
 use std::error::Error;
 use std::fmt;
 
+/// Error type for invalid access to 2D array.
 #[derive(Copy, Clone, Debug, Default)]
 pub struct IndexError {
-    x: i64,
-    y: i64,
+    pub x: i64,
+    pub y: i64,
 }
 
 unsafe impl Send for IndexError {}
@@ -58,10 +59,43 @@ impl fmt::Display for IndexError {
     }
 }
 
+/// To manipulate many Point libraries in the same way, we use tuple as entry points of API.
+/// If you implement IntoTuple2 to your point type, you can use it as Point in this library.
+/// # Example
+/// ```
+/// # extern crate rect_iter; fn main() {
+/// use rect_iter::IntoTuple2;
+/// struct Point {
+///     x: f64,
+///     y: f64,
+/// }
+/// impl IntoTuple2<f64> for Point {
+///     fn into_tuple2(self) -> (f64, f64) {
+///         (self.x, self.y)
+///     }
+/// }
+/// # }
+/// ```
 pub trait IntoTuple2<T> {
     fn into_tuple2(self) -> (T, T);
 }
 
+/// To manipulate many Point libraries in the same way, we use tuple as entry points of API.
+/// # Example
+/// ```
+/// # extern crate rect_iter; fn main() {
+/// use rect_iter::FromTuple2;
+/// struct Point {
+///     x: f64,
+///     y: f64,
+/// }
+/// impl FromTuple2<f64> for Point {
+///     fn from_tuple2(t: (f64, f64)) -> Self {
+///         Point { x: t.0, y: t.1 }
+///     }
+/// }
+/// # }
+/// ```
 pub trait FromTuple2<T> {
     fn from_tuple2(tuple: (T, T)) -> Self;
 }
@@ -87,6 +121,7 @@ impl<T: Clone> IntoTuple2<T> for (T, T) {
 }
 
 /// RectRange is rectangle representation using `std::ops::Range`.
+///
 /// Diffrent from Range<T>, RectRange itself isn't a iterator, but
 /// has `IntoIterator` implementation and `iter` method(with 'clone').
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -258,6 +293,19 @@ impl<T: Num + PartialOrd + Copy> IntoIterator for RectRange<T> {
     }
 }
 
+/// An Iterator type enumerating rectangle area.
+///
+/// You can construct it by RectRange.
+/// # Example
+/// ```
+/// # extern crate rect_iter; fn main() {
+/// use rect_iter::RectRange;
+/// let range = RectRange::zero_start(3, 4);
+/// for point in range {
+///     // some code here...
+/// }
+/// # }
+/// ```
 #[derive(Clone, Debug)]
 pub struct RectIter<T: Num + PartialOrd + Copy> {
     x: T,
@@ -283,6 +331,7 @@ impl<T: Num + PartialOrd + Copy> Iterator for RectIter<T> {
     }
 }
 
+/// A trait which provides common access interfaces to 2D Array type.
 pub trait Get2D {
     type Item;
     fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item>;
