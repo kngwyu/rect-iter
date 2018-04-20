@@ -138,6 +138,10 @@ impl<T: Num + PartialOrd> RectRange<T> {
     pub fn zero_start(x: T, y: T) -> Option<RectRange<T>> {
         RectRange::from_ranges(T::zero()..x, T::zero()..y)
     }
+    pub fn from_point<P: IntoTuple2<T>>(p: P) -> Option<RectRange<T>> {
+        let p = p.into_tuple2();
+        RectRange::from_ranges(T::zero()..p.0, T::zero()..p.1)
+    }
     pub fn from_ranges(x: Range<T>, y: Range<T>) -> Option<RectRange<T>> {
         if !Self::range_ok(&x) || !Self::range_ok(&y) {
             return None;
