@@ -21,7 +21,7 @@ use std::ops::{Deref, DerefMut, Range};
 
 #[cfg(feature = "euclid")]
 use euclid::{rect, TypedPoint2D, TypedRect, TypedVector2D};
-use num_traits::cast::ToPrimitive;
+use num_traits::cast::{FromPrimitive, ToPrimitive};
 use num_traits::Num;
 use tuple_map::TupleMap2;
 
@@ -190,7 +190,7 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
         r.end - r.start
     }
     /// same as `self.xlen * self.ylen`
-    pub fn length(&self) -> T {
+    pub fn len(&self) -> T {
         let (width, height) = (&self.x_range, &self.y_range)
             .map(|r| r.clone())
             .map(|r| r.end - r.start);
@@ -246,11 +246,7 @@ impl<T: Num + PartialOrd + Copy> RectRange<T> {
         RectRange::new(lu.0, lu.1, rd.0, rd.1)
     }
     pub fn iter(&self) -> RectIter<T> {
-        RectIter {
-            x: self.x_range.start,
-            y: self.y_range.start,
-            range: self.clone(),
-        }
+        self.clone().into_iter()
     }
     pub fn scale(self, sc: T) -> RectRange<T> {
         let scale_impl = |r: Range<T>, s| r.start * s..r.end * s;
@@ -299,14 +295,31 @@ impl<T: Num + PartialOrd + ToPrimitive + Copy> RectRange<T> {
     }
 }
 
+impl<T: Num + PartialOrd + Copy + FromPrimitive + ToPrimitive> RectRange<T> {
+    /// return 'nth' element as iterator
+    pub fn nth(&self, n: usize) -> Option<(T, T)> {
+        let width = self.x_range.end - self.x_range.start;
+        let width = width.to_usize()?;
+        let x = T::from_usize(n % width)? + self.x_range.start;
+        let y = T::from_usize(n / width)? + self.y_range.start;
+        if y >= self.y_range.end {
+            None
+        } else {
+            Some((x, y))
+        }
+    }
+}
+
 impl<T: Num + PartialOrd + Copy> IntoIterator for RectRange<T> {
     type Item = (T, T);
     type IntoIter = RectIter<T>;
     fn into_iter(self) -> Self::IntoIter {
         RectIter {
-            x: self.x_range.start,
-            y: self.y_range.start,
-            range: self,
+            front: (self.x_range.start, self.y_range.start),
+            back: (self.x_range.end - T::one(), self.y_range.end - T::one()),
+            end: false,
+            x_range: self.x_range.clone(),
+            y_range: self.y_range.clone(),
         }
     }
 }
@@ -326,26 +339,64 @@ impl<T: Num + PartialOrd + Copy> IntoIterator for RectRange<T> {
 /// ```
 #[derive(Clone, Debug)]
 pub struct RectIter<T: Num + PartialOrd + Copy> {
-    x: T,
-    y: T,
-    range: RectRange<T>,
+    front: (T, T),
+    back: (T, T),
+    end: bool,
+    x_range: Range<T>,
+    y_range: Range<T>,
 }
 
 impl<T: Num + PartialOrd + Copy> Iterator for RectIter<T> {
     type Item = (T, T);
-    fn next(&mut self) -> Option<(T, T)> {
-        if self.y >= self.range.y_range.end {
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.end {
             return None;
         }
-        let before = (self.x, self.y);
-        let nxt_x = T::one() + self.x;
-        if nxt_x < self.range.x_range.end {
-            self.x = nxt_x;
+        if self.front >= self.back {
+            self.end = true;
+            return Some(self.front);
+        }
+        let before = self.front;
+        if self.front.0 == self.x_range.end - T::one() {
+            self.front.0 = self.x_range.start;
+            self.front.1 = T::one() + self.front.1;
         } else {
-            self.x = self.range.x_range.start;
-            self.y = T::one() + self.y;
+            self.front.0 = T::one() + self.front.0;
         }
         Some(before)
+    }
+}
+
+impl<T: Num + PartialOrd + Copy> DoubleEndedIterator for RectIter<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.end {
+            return None;
+        }
+        if self.front >= self.back {
+            self.end = true;
+            return Some(self.front);
+        }
+        let before = self.back;
+        if self.back.0 == self.x_range.start {
+            self.back.0 = self.x_range.end - T::one();
+            self.back.1 = self.back.1 - T::one();
+        } else {
+            self.back.0 = self.back.0 - T::one();
+        }
+        Some(before)
+    }
+}
+
+impl<T: Num + PartialOrd + Copy + ToPrimitive> ExactSizeIterator for RectIter<T> {
+    fn len(&self) -> usize {
+        if self.end {
+            0
+        } else {
+            let (xlen, ylen) = self.back.sub(self.front).add((T::one(), T::one()));
+            (xlen * ylen)
+                .to_usize()
+                .expect("[RectIter::len] invalid cast")
+        }
     }
 }
 
@@ -561,6 +612,14 @@ mod tests {
         }
     }
     #[test]
+    fn iter_test_rev() {
+        let r = RectRange::from_ranges(4..7, 3..5).unwrap();
+        let correct = [(4, 3), (5, 3), (6, 3), (4, 4), (5, 4), (6, 4)];
+        for (&c, t) in correct.into_iter().rev().zip(r.into_iter().rev()) {
+            assert_eq!(c, t);
+        }
+    }
+    #[test]
     fn test_intersects_true() {
         let r1 = RectRange::from_ranges(4..7, 3..5).unwrap();
         let r2 = RectRange::from_ranges(6..10, 4..6).unwrap();
@@ -604,12 +663,23 @@ mod tests {
     fn test_gen_rect() {
         let r = RectRange::zero_start(5, 7).unwrap();
         let b = vec![vec![80; 100]; 100];
-        let a = gen_rect(&b, || vec![vec![0; 5]; 7], r.clone(), r).unwrap();
+        let a = gen_rect(&b, || vec![vec![0; 5]; 7], r.clone(), r.clone()).unwrap();
+        for i in r {
+            println!("{:?}", i);
+        }
         assert_eq!(vec![vec![80; 5]; 7], a);
     }
     #[test]
     fn test_length() {
         let r = RectRange::zero_start(7, 8).unwrap();
-        assert_eq!(r.length(), 56);
+        assert_eq!(r.len(), 56);
+        let iter = r.into_iter();
+        assert_eq!(iter.len(), 56);
+    }
+    #[test]
+    fn test_nth() {
+        let r = RectRange::from_ranges(4..7, 3..7).unwrap();
+        assert_eq!(r.nth(7), r.iter().nth(7));
+        assert_eq!(r.nth(12), None);
     }
 }
