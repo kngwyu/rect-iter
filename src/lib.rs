@@ -179,6 +179,22 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
             y_range: self.y_range.start + t.1.clone()..self.y_range.end + t.1,
         }
     }
+    /// slide start point without checking
+    pub fn slide_start<P: IntoTuple2<T>>(self, t: P) -> RectRange<T> {
+        let t = t.into_tuple2();
+        RectRange {
+            x_range: self.x_range.start + t.0.clone()..self.x_range.end,
+            y_range: self.y_range.start + t.1.clone()..self.y_range.end,
+        }
+    }
+    /// slide end point without checking
+    pub fn slide_end<P: IntoTuple2<T>>(self, t: P) -> RectRange<T> {
+        let t = t.into_tuple2();
+        RectRange {
+            x_range: self.x_range.start..self.x_range.end + t.0,
+            y_range: self.y_range.start..self.y_range.end + t.1,
+        }
+    }
     /// the length in the x-axis deirection
     pub fn xlen(&self) -> T {
         let r = self.x_range.clone();
