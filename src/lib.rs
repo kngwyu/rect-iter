@@ -205,13 +205,6 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
         let r = self.y_range.clone();
         r.end - r.start
     }
-    /// same as `self.xlen * self.ylen`
-    pub fn len(&self) -> T {
-        let (width, height) = (&self.x_range, &self.y_range)
-            .map(|r| r.clone())
-            .map(|r| r.end - r.start);
-        width * height
-    }
     /// judges if 2 ranges have intersection
     pub fn intersects(&self, other: &RectRange<T>) -> bool {
         let not_inter = |r1: &Range<T>, r2: &Range<T>| r1.end <= r2.start || r2.end <= r1.start;
@@ -312,6 +305,15 @@ impl<T: Num + PartialOrd + ToPrimitive + Copy> RectRange<T> {
 }
 
 impl<T: Num + PartialOrd + Copy + FromPrimitive + ToPrimitive> RectRange<T> {
+    /// returns `self.xlen * self.ylen` as usize
+    pub fn len(&self) -> usize {
+        let (width, height) = (&self.x_range, &self.y_range)
+            .map(|r| r.clone())
+            .map(|r| r.end - r.start);
+        (width * height)
+            .to_usize()
+            .expect("[RectRange::len] invalid cast")
+    }
     /// return 'nth' element as iterator
     pub fn nth(&self, n: usize) -> Option<(T, T)> {
         let width = self.x_range.end - self.x_range.start;
