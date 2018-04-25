@@ -11,20 +11,19 @@ There are many libralies handle 2D rectangle area, so I think it's convinient if
 with `image` feature:
 
 ``` rust
-extern crate rect-iter;
-extern crate image;
-use image::DynamicImage;
-use rect_iter::{gen_rect, RectRange};
+extern crate rect_iter;
+extern crate euclid;
+use euclid::TypedVector2D;
+use rect_iter::{RectRange, FromTuple2, GetMut2D};
+type MyVec = TypedVector2D<u64, ()>;
 fn main() {
-    let img = image::open("a.png");
-    let img = match img {
-        DynamicImage::ImageRgba8(img) => img,
-        x => x.to_rgba(),
-    };
-    let (x, y) = (img.width(), img.height());
-    let img_range = RectRange::zero_start(x, y).unwrap();
-    let red = gen_rect(&b, || vec![vec![0; x]; y], img_range.clone(), img_range.clone());
+    let range = RectRange::from_ranges(4..9, 5..10).unwrap();
+    let mut buffer = vec![vec![0.0; 100]; 100];
+    range.iter().try_for_each(|t| {
+        let len = MyVec::from_tuple2(t).to_f64().length();
+        *buffer.get_mut_point(t)? = len;
+        Some(())
+    });
 }
-
 ```
 

@@ -1,4 +1,23 @@
 //! This crate provides simple Iterator for enumerating rectangle.
+//! # Example
+//! ```rust
+//! # #![feature(iterator_try_fold)]
+//! extern crate rect_iter;
+//! extern crate euclid;
+//! use euclid::TypedVector2D;
+//! use rect_iter::{RectRange, FromTuple2, GetMut2D};
+//! type MyVec = TypedVector2D<u64, ()>;
+//! fn main() {
+//!     let range = RectRange::from_ranges(4..9, 5..10).unwrap();
+//!     let mut buffer = vec![vec![0.0; 100]; 100];
+//!     range.iter().try_for_each(|t| {
+//!         let len = MyVec::from_tuple2(t).to_f64().length();
+//!         *buffer.get_mut_point(t)? = len;
+//!         Some(())
+//!     });
+//! }
+//! ```
+
 #![feature(iterator_try_fold)]
 
 #[cfg(feature = "euclid")]
@@ -20,7 +39,7 @@ extern crate serde;
 use std::ops::{Deref, DerefMut, Range};
 
 #[cfg(feature = "euclid")]
-use euclid::{rect, TypedPoint2D, TypedRect, TypedVector2D};
+use euclid::{point2, rect, vec2, TypedPoint2D, TypedRect, TypedVector2D};
 use num_traits::cast::{FromPrimitive, ToPrimitive};
 use num_traits::Num;
 use tuple_map::TupleMap2;
@@ -114,9 +133,29 @@ impl<T: Clone, U> IntoTuple2<T> for TypedVector2D<T, U> {
     }
 }
 
-impl<T: Clone> IntoTuple2<T> for (T, T) {
+impl<T> IntoTuple2<T> for (T, T) {
     fn into_tuple2(self) -> (T, T) {
-        self.clone()
+        self
+    }
+}
+
+#[cfg(feature = "euclid")]
+impl<T: Copy, U> FromTuple2<T> for TypedPoint2D<T, U> {
+    fn from_tuple2(t: (T, T)) -> TypedPoint2D<T, U> {
+        point2(t.0, t.1)
+    }
+}
+
+#[cfg(feature = "euclid")]
+impl<T: Clone, U> FromTuple2<T> for TypedVector2D<T, U> {
+    fn from_tuple2(t: (T, T)) -> TypedVector2D<T, U> {
+        vec2(t.0, t.1)
+    }
+}
+
+impl<T> FromTuple2<T> for (T, T) {
+    fn from_tuple2(t: (T, T)) -> Self {
+        t
     }
 }
 
