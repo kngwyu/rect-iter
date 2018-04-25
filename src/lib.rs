@@ -163,12 +163,15 @@ impl<T: Num + PartialOrd> RectRange<T> {
 }
 
 impl<T: Num + PartialOrd + Clone> RectRange<T> {
+    /// get x range
     pub fn cloned_x(&self) -> Range<T> {
         self.x_range.clone()
     }
+    /// get y range
     pub fn cloned_y(&self) -> Range<T> {
         self.y_range.clone()
     }
+    /// slide range by the given point
     pub fn slide<P: IntoTuple2<T>>(self, t: P) -> RectRange<T> {
         let t = t.into_tuple2();
         RectRange {
@@ -176,18 +179,29 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
             y_range: self.y_range.start + t.1.clone()..self.y_range.end + t.1,
         }
     }
+    /// the length in the x-axis deirection
     pub fn xlen(&self) -> T {
         let r = self.x_range.clone();
         r.end - r.start
     }
+    /// the length of in the y-axis deirection
     pub fn ylen(&self) -> T {
         let r = self.y_range.clone();
         r.end - r.start
     }
+    /// same as `self.xlen * self.ylen`
+    pub fn length(&self) -> T {
+        let (width, height) = (&self.x_range, &self.y_range)
+            .map(|r| r.clone())
+            .map(|r| r.end - r.start);
+        width * height
+    }
+    /// judges if 2 ranges have intersection
     pub fn intersects(&self, other: &RectRange<T>) -> bool {
         let not_inter = |r1: &Range<T>, r2: &Range<T>| r1.end <= r2.start || r2.end <= r1.start;
         !(not_inter(&self.x_range, &other.x_range) || not_inter(&self.y_range, &other.y_range))
     }
+    /// gets the intersection of 2 ranges
     pub fn intersection(&self, other: &RectRange<T>) -> Option<RectRange<T>> {
         let inter = |r1: Range<T>, r2: Range<T>| {
             let s = max(r1.start, r2.start);
@@ -592,5 +606,10 @@ mod tests {
         let b = vec![vec![80; 100]; 100];
         let a = gen_rect(&b, || vec![vec![0; 5]; 7], r.clone(), r).unwrap();
         assert_eq!(vec![vec![80; 5]; 7], a);
+    }
+    #[test]
+    fn test_length() {
+        let r = RectRange::zero_start(7, 8).unwrap();
+        assert_eq!(r.length(), 56);
     }
 }
