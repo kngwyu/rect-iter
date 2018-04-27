@@ -1,7 +1,6 @@
 //! This crate provides simple Iterator for enumerating rectangle.
 //! # Example
 //! ```rust
-//! # #![feature(iterator_try_fold)]
 //! extern crate rect_iter;
 //! extern crate euclid;
 //! use euclid::TypedVector2D;
@@ -10,10 +9,9 @@
 //! fn main() {
 //!     let range = RectRange::from_ranges(4..9, 5..10).unwrap();
 //!     let mut buffer = vec![vec![0.0; 100]; 100];
-//!     range.iter().try_for_each(|t| {
+//!     range.iter().for_each(|t| {
 //!         let len = MyVec::from_tuple2(t).to_f64().length();
-//!         *buffer.get_mut_point(t)? = len;
-//!         Some(())
+//!         *buffer.get_mut_p(t) = len;
 //!     });
 //! }
 //! ```
@@ -50,21 +48,14 @@ use std::error::Error;
 use std::fmt;
 
 /// Error type for invalid access to 2D array.
-#[derive(Copy, Clone, Debug, Default)]
-pub struct IndexError {
-    pub x: i64,
-    pub y: i64,
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+pub enum IndexError {
+    X(i64),
+    Y(i64),
 }
 
 unsafe impl Send for IndexError {}
 unsafe impl Sync for IndexError {}
-
-impl IndexError {
-    fn new<T: ToPrimitive>(x: T, y: T) -> IndexError {
-        let (x, y) = (x, y).map(|i| i.to_i64().unwrap());
-        IndexError { x: x, y: y }
-    }
-}
 
 impl Error for IndexError {
     fn description(&self) -> &str {
@@ -74,7 +65,10 @@ impl Error for IndexError {
 
 impl fmt::Display for IndexError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "Index Error at x: {}, y: {}", self.x, self.y)
+        match *self {
+            IndexError::X(x) => write!(f, "Invalid Index x: {}", x),
+            IndexError::Y(y) => write!(f, "Invalid Index y: {}", y),
+        }
     }
 }
 
@@ -353,7 +347,8 @@ impl<T: Num + PartialOrd + Copy + FromPrimitive + ToPrimitive> RectRange<T> {
             .to_usize()
             .expect("[RectRange::len] invalid cast")
     }
-    /// return 'nth' element as iterator
+    /// return 'nth' element
+    /// same as RectIter::nth, but much faster(O(1))
     pub fn nth(&self, n: usize) -> Option<(T, T)> {
         let width = self.x_range.end - self.x_range.start;
         let width = width.to_usize()?;
@@ -460,65 +455,82 @@ impl<T: Num + PartialOrd + Copy + ToPrimitive> ExactSizeIterator for RectIter<T>
 /// A trait which provides common access interfaces to 2D Array type.
 pub trait Get2D {
     type Item;
-    fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item>;
-    fn get_point<T: ToPrimitive, P: IntoTuple2<T>>(&self, t: P) -> Option<&Self::Item> {
-        let t = t.into_tuple2();
-        self.get_xy(t.0, t.1)
+    fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> &Self::Item {
+        self.try_get_xy(x, y).expect("[Get2d::get] Invalid index")
     }
-    fn get_xy_r<T: ToPrimitive + Clone>(&self, x: T, y: T) -> Result<&Self::Item, IndexError> {
-        let r = self.get_xy(x.clone(), y.clone());
-        match r {
-            Some(p) => Ok(p),
-            None => Err(IndexError::new(x, y)),
-        }
+    fn get_p<T: ToPrimitive, P: IntoTuple2<T>>(&self, p: P) -> &Self::Item {
+        self.try_get_p(p).expect("[Get2d::get_p] Invalid index")
     }
-    fn get_point_r<T: ToPrimitive + Clone, P: IntoTuple2<T>>(
-        &self,
-        t: P,
-    ) -> Result<&Self::Item, IndexError> {
-        let t = t.into_tuple2();
-        self.get_xy_r(t.0, t.1)
+    fn try_get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Result<&Self::Item, IndexError>;
+    fn try_get_p<T: ToPrimitive, P: IntoTuple2<T>>(&self, p: P) -> Result<&Self::Item, IndexError> {
+        let t = p.into_tuple2();
+        self.try_get_xy(t.0, t.1)
     }
 }
 
-pub trait GetMut2D {
-    type Item;
-    fn get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T) -> Option<&mut Self::Item>;
-    fn get_mut_point<T: ToPrimitive, P: IntoTuple2<T>>(&mut self, t: P) -> Option<&mut Self::Item> {
-        let t = t.into_tuple2();
-        self.get_mut_xy(t.0, t.1)
+pub trait GetMut2D: Get2D {
+    fn get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T) -> &mut Self::Item {
+        self.try_get_mut_xy(x, y)
+            .expect("[Get2d::get] Invalid index")
     }
-    fn get_mut_xy_r<T: ToPrimitive + Clone>(
-        &mut self,
-        x: T,
-        y: T,
-    ) -> Result<&mut Self::Item, IndexError> {
-        let r = self.get_mut_xy(x.clone(), y.clone());
-        match r {
-            Some(p) => Ok(p),
-            None => Err(IndexError::new(x, y)),
-        }
+    fn get_mut_p<T: ToPrimitive, P: IntoTuple2<T>>(&mut self, p: P) -> &mut Self::Item {
+        self.try_get_mut_p(p).expect("[Get2d::get_p] Invalid index")
     }
-    fn get_mut_point_r<T: ToPrimitive + Clone, P: IntoTuple2<T>>(
+    fn try_get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T)
+        -> Result<&mut Self::Item, IndexError>;
+    fn try_get_mut_p<T: ToPrimitive, P: IntoTuple2<T>>(
         &mut self,
-        t: P,
+        p: P,
     ) -> Result<&mut Self::Item, IndexError> {
-        let t = t.into_tuple2();
-        self.get_mut_xy_r(t.0, t.1)
+        let t = p.into_tuple2();
+        self.try_get_mut_xy(t.0, t.1)
     }
 }
 
 impl<D> Get2D for Vec<Vec<D>> {
     type Item = D;
-    fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item> {
-        Some(self.get(y.to_usize()?)?.get(x.to_usize()?)?)
+    fn try_get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Result<&Self::Item, IndexError> {
+        let x = match x.to_usize() {
+            Some(x) => x,
+            None => return Err(IndexError::X(x.to_i64().unwrap())),
+        };
+        let y = match y.to_usize() {
+            Some(y) => y,
+            None => return Err(IndexError::Y(y.to_i64().unwrap())),
+        };
+        let line = match self.get(y) {
+            Some(l) => l,
+            None => return Err(IndexError::Y(y as i64)),
+        };
+        match line.get(x) {
+            Some(res) => Ok(res),
+            None => Err(IndexError::X(x as i64)),
+        }
     }
 }
 
 impl<D> GetMut2D for Vec<Vec<D>> {
-    type Item = D;
-    fn get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T) -> Option<&mut Self::Item> {
-        Some(self.get_mut(y.to_usize()?)?.get_mut(x.to_usize()?)?)
+    fn try_get_mut_xy<T: ToPrimitive>(
+        &mut self,
+        x: T,
+        y: T,
+    ) -> Result<&mut Self::Item, IndexError> {
+        let x = match x.to_usize() {
+            Some(x) => x,
+            None => return Err(IndexError::X(x.to_i64().unwrap())),
+        };
+        let y = match y.to_usize() {
+            Some(y) => y,
+            None => return Err(IndexError::Y(y.to_i64().unwrap())),
+        };
+        let line = match self.get_mut(y) {
+            Some(l) => l,
+            None => return Err(IndexError::Y(y as i64)),
+        };
+        match line.get_mut(x) {
+            Some(res) => Ok(res),
+            None => Err(IndexError::X(x as i64)),
+        }
     }
 }
 
@@ -537,7 +549,7 @@ where
         .into_iter()
         .zip(dest_range.into_iter())
         .try_for_each(|(s, d)| {
-            *dest.get_mut_point_r(d)? = convert(source.get_point_r(s)?);
+            *dest.try_get_mut_p(d)? = convert(source.try_get_p(s)?);
             Ok(())
         })
 }
@@ -557,7 +569,7 @@ where
         .into_iter()
         .zip(dest_range.into_iter())
         .try_for_each(|(s, d)| {
-            *dest.get_mut_point_r(d)? = source.get_point_r(s)?.clone();
+            *dest.try_get_mut_p(d)? = source.try_get_p(s)?.clone();
             Ok(())
         })
 }
@@ -579,7 +591,7 @@ where
         .into_iter()
         .zip(dest_range.into_iter())
         .try_fold(gen_dist(), |mut dest, (s, d)| {
-            *dest.get_mut_point_r(d)? = convert(source.get_point_r(s)?);
+            *dest.try_get_mut_p(d)? = convert(source.try_get_p(s)?);
             Ok(dest)
         })
 }
@@ -600,7 +612,7 @@ where
         .into_iter()
         .zip(dest_range.into_iter())
         .try_fold(gen_dist(), |mut dest, (s, d)| {
-            *dest.get_mut_point_r(d)? = source.get_point_r(s)?.clone();
+            *dest.try_get_mut_p(d)? = source.try_get_p(s)?.clone();
             Ok(dest)
         })
 }
@@ -613,13 +625,15 @@ where
     C: Deref<Target = [P::Subpixel]>,
 {
     type Item = P;
-    fn get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Option<&Self::Item> {
-        let (x, y) = (x.to_u32()?, y.to_u32()?);
-        if x >= self.width() || y >= self.height() {
-            None
-        } else {
-            Some(self.get_pixel(x, y))
+    fn try_get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Result<&Self::Item, IndexError> {
+        let (x, y) = (x.to_u32().unwrap(), y.to_u32().unwrap());
+        if x >= self.width() {
+            return Err(IndexError::X(i64::from(x)));
         }
+        if y >= self.height() {
+            return Err(IndexError::Y(i64::from(y)));
+        }
+        Ok(self.get_pixel(x, y))
     }
 }
 
@@ -630,14 +644,19 @@ where
     P::Subpixel: 'static,
     C: Deref<Target = [P::Subpixel]> + DerefMut,
 {
-    type Item = P;
-    fn get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T) -> Option<&mut Self::Item> {
-        let (x, y) = (x.to_u32()?, y.to_u32()?);
-        if x >= self.width() || y >= self.height() {
-            None
-        } else {
-            Some(self.get_pixel_mut(x, y))
+    fn try_get_mut_xy<T: ToPrimitive>(
+        &mut self,
+        x: T,
+        y: T,
+    ) -> Result<&mut Self::Item, IndexError> {
+        let (x, y) = (x.to_u32().unwrap(), y.to_u32().unwrap());
+        if x >= self.width() {
+            return Err(IndexError::X(i64::from(x)));
         }
+        if y >= self.height() {
+            return Err(IndexError::Y(i64::from(y)));
+        }
+        Ok(self.get_pixel_mut(x, y))
     }
 }
 
@@ -704,8 +723,8 @@ mod tests {
     #[test]
     fn test_get_vec() {
         let a = vec![vec![3; 5]; 7];
-        assert_eq!(Some(&3), a.get_xy(3, 3));
-        assert_eq!(None, a.get_xy(5, 7));
+        assert_eq!(&3, a.get_xy(3, 3));
+        assert_eq!(Err(IndexError::Y(7)), a.try_get_xy(5, 7));
     }
     #[test]
     fn test_copy_rect() {
@@ -713,8 +732,7 @@ mod tests {
         let r1 = RectRange::from_ranges(3..5, 2..6).unwrap();
         let b = vec![vec![80; 100]; 100];
         copy_rect(&b, &mut a, r1.clone(), r1.clone()).unwrap();
-        r1.into_iter()
-            .for_each(|p| assert_eq!(a.get_point(p), Some(&80)));
+        r1.into_iter().for_each(|p| assert_eq!(a.get_p(p), &80));
     }
     #[test]
     fn test_gen_rect() {

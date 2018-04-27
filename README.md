@@ -19,10 +19,9 @@ type MyVec = TypedVector2D<u64, ()>;
 fn main() {
     let range = RectRange::from_ranges(4..9, 5..10).unwrap();
     let mut buffer = vec![vec![0.0; 100]; 100];
-    range.iter().try_for_each(|t| {
+    range.iter().for_each(|t| {
         let len = MyVec::from_tuple2(t).to_f64().length();
-        *buffer.get_mut_point(t)? = len;
-        Some(())
+        *buffer.get_mut_p(t) = len;
     });
 }
 ```
