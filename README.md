@@ -1,14 +1,15 @@
 # rect-iter
 [![Build Status](https://travis-ci.org/kngwyu/rect-iter.svg?branch=master)](https://travis-ci.org/kngwyu/rect-iter)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![crate.io](http://meritbadge.herokuapp.com/rect-iter)](https://crates.io/crates/rect-iter)
+[![Documentation](https://docs.rs/rect-iter/badge.svg)](https://docs.rs/rect-iter)
 
 This library provides general iterator for enumerating Rectangle.
 
-There are many libralies handle 2D rectangle area, so I think it's convinient if we can use those libraries in the same way.
+There are many libralies which handle 2D rectangle area, so I think it's convinient if we can use those libraries in the same way.
 
 # Example
 
-with `image` feature:
+with `euclid` feature(it's included by default):
 
 ``` rust
 extern crate rect_iter;
@@ -26,3 +27,13 @@ fn main() {
 }
 ```
 
+# License
+
+This project is licensed under either of
+
+ * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
+   http://www.apache.org/licenses/LICENSE-2.0)
+ * MIT license ([LICENSE-MIT](LICENSE-MIT) or
+   http://opensource.org/licenses/MIT)
+
+at your option.
