@@ -259,6 +259,26 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
             y_range: inter(self.y_range.clone(), other.y_range.clone())?,
         })
     }
+    /// get the upper left corner(inclusive)
+    pub fn upper_left(&self) -> (T, T) {
+        (&self.x_range, &self.y_range).map(|r| r.start.clone())
+    }
+    /// get the upper right corner(inclusive)
+    pub fn upper_right(&self) -> (T, T) {
+        let x = self.x_range.end.clone() - T::one();
+        let y = self.y_range.start.clone();
+        (x, y)
+    }
+    /// get the lower left corner(inclusive)
+    pub fn lower_left(&self) -> (T, T) {
+        let x = self.x_range.start.clone();
+        let y = self.y_range.end.clone() - T::one();
+        (x, y)
+    }
+    /// get the lower right corner(inclusive)
+    pub fn lower_right(&self) -> (T, T) {
+        (&self.x_range, &self.y_range).map(|r| r.end.clone() - T::one())
+    }
 }
 
 impl<T: Num + PartialOrd + Copy> RectRange<T> {
