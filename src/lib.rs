@@ -16,8 +16,7 @@
 //! }
 //! ```
 
-#![feature(iterator_try_fold)]
-
+#![cfg_attr(feature = "nightly", feature(iterator_try_fold))]
 #[cfg(feature = "euclid")]
 extern crate euclid;
 
@@ -554,6 +553,7 @@ impl<D> GetMut2D for Vec<Vec<D>> {
     }
 }
 
+#[cfg(feature = "nightly")]
 pub fn copy_rect_conv<T, U, I, J>(
     source: &impl Get2D<Item = T>,
     dest: &mut impl GetMut2D<Item = U>,
@@ -574,6 +574,7 @@ where
         })
 }
 
+#[cfg(feature = "nightly")]
 pub fn copy_rect<T, I, J>(
     source: &impl Get2D<Item = T>,
     dest: &mut impl GetMut2D<Item = T>,
@@ -594,6 +595,7 @@ where
         })
 }
 
+#[cfg(feature = "nightly")]
 pub fn gen_rect_conv<D, T, U, I, J>(
     source: &impl Get2D<Item = T>,
     gen_dist: impl Fn() -> D,
@@ -616,6 +618,7 @@ where
         })
 }
 
+#[cfg(feature = "nightly")]
 pub fn gen_rect<D, T, I, J>(
     source: &impl Get2D<Item = T>,
     gen_dist: impl Fn() -> D,
@@ -747,6 +750,7 @@ mod tests {
         assert_eq!(Err(IndexError::Y(7)), a.try_get_xy(5, 7));
     }
     #[test]
+    #[cfg(feature = "nightly")]
     fn test_copy_rect() {
         let mut a = vec![vec![3; 5]; 7];
         let r1 = RectRange::from_ranges(3..5, 2..6).unwrap();
@@ -755,6 +759,7 @@ mod tests {
         r1.into_iter().for_each(|p| assert_eq!(a.get_p(p), &80));
     }
     #[test]
+    #[cfg(feature = "nightly")]
     fn test_gen_rect() {
         let r = RectRange::zero_start(5, 7).unwrap();
         let b = vec![vec![80; 100]; 100];
