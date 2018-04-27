@@ -164,33 +164,45 @@ pub struct RectRange<T: Num + PartialOrd> {
 }
 
 impl<T: Num + PartialOrd> RectRange<T> {
+    /// construct a range from left x, lower y, right x, upper y
     pub fn new(lx: T, ly: T, ux: T, uy: T) -> Option<RectRange<T>> {
         RectRange::from_ranges(lx..ux, ly..uy)
     }
+    /// construct a range `x_range: 0..x, y_range: 0..y`
     pub fn zero_start(x: T, y: T) -> Option<RectRange<T>> {
         RectRange::from_ranges(T::zero()..x, T::zero()..y)
     }
+    /// construct a range `x_range: 0..p.x, y_range: 0..p.y`
     pub fn from_point<P: IntoTuple2<T>>(p: P) -> Option<RectRange<T>> {
         let p = p.into_tuple2();
         RectRange::from_ranges(T::zero()..p.0, T::zero()..p.1)
     }
-    pub fn from_ranges(x: Range<T>, y: Range<T>) -> Option<RectRange<T>> {
-        if !Self::range_ok(&x) || !Self::range_ok(&y) {
+    /// construct a range `x_range: 0..x, y_range: 0..y`
+    pub fn from_ranges(x_range: Range<T>, y_range: Range<T>) -> Option<RectRange<T>> {
+        if !Self::range_ok(&x_range) || !Self::range_ok(&y_range) {
             return None;
         }
-        Some(RectRange {
-            x_range: x,
-            y_range: y,
-        })
+        Some(RectRange { x_range, y_range })
     }
+    /// checks if the range contains the point
+    pub fn contains<P: IntoTuple2<T>>(&self, p: P) -> bool {
+        let (x, y) = p.into_tuple2();
+        Self::contains_(&self.x_range, x) && Self::contains_(&self.y_range, y)
+    }
+    /// get the reference of x range
     pub fn get_x(&self) -> &Range<T> {
         &self.x_range
     }
+    /// get the reference of y range
     pub fn get_y(&self) -> &Range<T> {
         &self.y_range
     }
     fn range_ok(r: &Range<T>) -> bool {
         r.start < r.end
+    }
+    /// we should switch to `RangeBound::contains` if it becomes stable
+    fn contains_(r: &Range<T>, val: T) -> bool {
+        r.start <= val && val < r.end
     }
 }
 
@@ -781,5 +793,11 @@ mod tests {
         let r = RectRange::from_ranges(4..7, 3..7).unwrap();
         assert_eq!(r.nth(7), r.iter().nth(7));
         assert_eq!(r.nth(12), None);
+    }
+    #[test]
+    fn test_contains() {
+        let r = RectRange::from_ranges(4..7, 3..7).unwrap();
+        assert!(r.contains((6, 6)));
+        assert!(!r.contains((6, 7)));
     }
 }
