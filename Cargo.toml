@@ -1,6 +1,6 @@
 [package]
 name = "rect-iter"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["kngwyu <yuji.kngw.80s.revive@gmail.com>"]
 repository = "https://github.com/kngwyu/rect-iter"
 homepage = "https://github.com/kngwyu/rect-iter"

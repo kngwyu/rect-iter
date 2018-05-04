@@ -249,6 +249,10 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
         let r = self.y_range.clone();
         r.end - r.start
     }
+    /// calc the area of the range
+    pub fn area(&self) -> T {
+        self.xlen() * self.ylen()
+    }
     /// judges if 2 ranges have intersection
     pub fn intersects(&self, other: &RectRange<T>) -> bool {
         let not_inter = |r1: &Range<T>, r2: &Range<T>| r1.end <= r2.start || r2.end <= r1.start;
@@ -320,14 +324,17 @@ impl<T: Num + PartialOrd + Copy> RectRange<T> {
             self.y_range.end - orig_y,
         )
     }
+    /// generate RectRange from corners(lower: inclusive, upper: exclusive)
     pub fn from_corners<P: IntoTuple2<T>>(lu: P, rd: P) -> Option<RectRange<T>> {
         let lu = lu.into_tuple2();
         let rd = rd.into_tuple2();
         RectRange::new(lu.0, lu.1, rd.0, rd.1)
     }
+    /// get iterator from reference
     pub fn iter(&self) -> RectIter<T> {
         self.clone().into_iter()
     }
+    /// expand the rectangle
     pub fn scale(self, sc: T) -> RectRange<T> {
         let scale_impl = |r: Range<T>, s| r.start * s..r.end * s;
         RectRange {
