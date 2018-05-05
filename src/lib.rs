@@ -417,6 +417,17 @@ impl<T: Num + PartialOrd + Copy + FromPrimitive + ToPrimitive> RectRange<T> {
             Some((x, y))
         }
     }
+    /// take Point and return 0-start unique index using the same order as RectIter
+    pub fn index<P: IntoTuple2<T>>(&self, p: P) -> Option<usize> {
+        let t = p.into_tuple2();
+        if !self.contains(t) {
+            return None;
+        }
+        let (x, y) = t.map(|i| i.to_usize());
+        let (start_x, start_y) = (&self.x_range, &self.y_range).map(|r| r.start.to_usize());
+        let xlen = self.xlen().to_usize()?;
+        Some(x? - start_x? + (y? - start_y?) * xlen)
+    }
 }
 
 impl<T: Num + PartialOrd + Copy> IntoIterator for RectRange<T> {
@@ -832,5 +843,14 @@ mod tests {
         assert!(r.is_edge((6, 6)));
         assert!(r.is_edge((4, 5)));
         assert!(!r.is_edge((4, 7)));
+    }
+    #[test]
+    fn test_index() {
+        let r = RectRange::from_ranges(4..7, 3..7).unwrap();
+        for i in 0..r.len() {
+            let cd = r.nth(i).unwrap();
+            assert_eq!(r.index(cd), Some(i));
+        }
+        assert_eq!(r.index((6, 7)), None);
     }
 }
