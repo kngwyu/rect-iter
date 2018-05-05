@@ -189,13 +189,21 @@ impl<T: Num + PartialOrd> RectRange<T> {
         let (x, y) = p.into_tuple2();
         Self::contains_(&self.x_range, x) && Self::contains_(&self.y_range, y)
     }
-    /// get the reference of x range
+    /// get a reference of x range
     pub fn get_x(&self) -> &Range<T> {
         &self.x_range
     }
-    /// get the reference of y range
+    /// get a reference of y range
     pub fn get_y(&self) -> &Range<T> {
         &self.y_range
+    }
+    /// get a mutable reference of x range
+    pub fn get_mut_x(&mut self) -> &mut Range<T> {
+        &mut self.x_range
+    }
+    /// get a mutable reference of y range
+    pub fn get_mut_y(&mut self) -> &mut Range<T> {
+        &mut self.y_range
     }
     /// checks if the range is valid or not
     pub fn is_valid(&self) -> bool {
