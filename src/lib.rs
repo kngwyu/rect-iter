@@ -197,6 +197,10 @@ impl<T: Num + PartialOrd> RectRange<T> {
     pub fn get_y(&self) -> &Range<T> {
         &self.y_range
     }
+    /// checks if the range is valid or not
+    pub fn is_valid(&self) -> bool {
+        Self::range_ok(&self.x_range) && Self::range_ok(&self.y_range)
+    }
     fn range_ok(r: &Range<T>) -> bool {
         r.start < r.end
     }
