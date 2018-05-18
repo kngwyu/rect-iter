@@ -313,6 +313,18 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
             && ((x, self.x_range.clone()), (y, self.y_range.clone()))
                 .any(|(p, r)| p == r.start || p == r.end - T::one())
     }
+    /// checks if the point is on the vertical edge of the rectangle
+    pub fn is_vert_edge<P: IntoTuple2<T>>(&self, p: P) -> bool {
+        let (x, y) = p.into_tuple2();
+        let range = self.x_range.clone();
+        self.contains((x.clone(), y.clone())) && (x == range.start || x == range.end - T::one())
+    }
+    /// checks if the point is on the horizoni edge of the rectangle
+    pub fn is_horiz_edge<P: IntoTuple2<T>>(&self, p: P) -> bool {
+        let (x, y) = p.into_tuple2();
+        let range = self.y_range.clone();
+        self.contains((x.clone(), y.clone())) && (y == range.start || y == range.end - T::one())
+    }
 }
 
 impl<T: Num + PartialOrd + Copy> RectRange<T> {
@@ -852,5 +864,17 @@ mod tests {
             assert_eq!(r.index(cd), Some(i));
         }
         assert_eq!(r.index((6, 7)), None);
+    }
+    #[test]
+    fn test_is_vert_edge() {
+        let r = RectRange::from_ranges(4..7, 3..7).unwrap();
+        assert!(r.is_vert_edge((4, 5)));
+        assert!(!r.is_vert_edge((5, 6)));
+    }
+    #[test]
+    fn test_is_horiz_edge() {
+        let r = RectRange::from_ranges(4..7, 3..7).unwrap();
+        assert!(!r.is_horiz_edge((4, 5)));
+        assert!(r.is_horiz_edge((5, 6)));
     }
 }
