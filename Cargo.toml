@@ -14,11 +14,15 @@ num-traits = "0.2"
 tuple-map = "0.3.0"
 
 [dependencies.euclid]
-version = "0.17"
+version = "0.19"
+optional = true
+
+[dependencies.ndarray]
+version = "0.12"
 optional = true
 
 [dependencies.image]
-version = "0.18"
+version = "0.20"
 optional = true
 
 [dependencies.serde]
@@ -28,7 +32,6 @@ optional = true
 
 [features]
 default = ["euclid"]
-nightly = []
 
 [package.metadata.docs.rs]
-features = ["euclid", "image", "serde"]
+features = ["euclid", "ndarray", "image", "serde"]

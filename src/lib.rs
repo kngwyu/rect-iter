@@ -16,7 +16,6 @@
 //! }
 //! ```
 
-#![cfg_attr(feature = "nightly", feature(iterator_try_fold))]
 #[cfg(feature = "euclid")]
 extern crate euclid;
 
@@ -24,6 +23,9 @@ extern crate euclid;
 #[allow(unused_imports)]
 extern crate image;
 
+#[cfg(feature = "ndarray")]
+#[allow(unused_imports)]
+extern crate ndarray;
 extern crate num_traits;
 extern crate tuple_map;
 
@@ -37,6 +39,10 @@ use std::ops::{Deref, DerefMut, Range};
 
 #[cfg(feature = "euclid")]
 use euclid::{point2, rect, vec2, TypedPoint2D, TypedRect, TypedVector2D};
+
+#[cfg(feature = "ndarray")]
+use ndarray::{ArrayBase, Data, DataMut, Ix2};
+
 use num_traits::cast::{FromPrimitive, ToPrimitive};
 use num_traits::Num;
 use tuple_map::TupleMap2;
@@ -614,7 +620,6 @@ impl<D> GetMut2D for Vec<Vec<D>> {
     }
 }
 
-#[cfg(feature = "nightly")]
 pub fn copy_rect_conv<T, U, I, J>(
     source: &impl Get2D<Item = T>,
     dest: &mut impl GetMut2D<Item = U>,
@@ -635,7 +640,6 @@ where
         })
 }
 
-#[cfg(feature = "nightly")]
 pub fn copy_rect<T, I, J>(
     source: &impl Get2D<Item = T>,
     dest: &mut impl GetMut2D<Item = T>,
@@ -656,7 +660,6 @@ where
         })
 }
 
-#[cfg(feature = "nightly")]
 pub fn gen_rect_conv<D, T, U, I, J>(
     source: &impl Get2D<Item = T>,
     gen_dist: impl Fn() -> D,
@@ -679,7 +682,6 @@ where
         })
 }
 
-#[cfg(feature = "nightly")]
 pub fn gen_rect<D, T, I, J>(
     source: &impl Get2D<Item = T>,
     gen_dist: impl Fn() -> D,
@@ -741,6 +743,43 @@ where
             return Err(IndexError::Y(i64::from(y)));
         }
         Ok(self.get_pixel_mut(x, y))
+    }
+}
+
+#[cfg(feature = "ndarray")]
+impl<S: Data> Get2D for ArrayBase<S, Ix2> {
+    type Item = S::Elem;
+    fn try_get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Result<&Self::Item, IndexError> {
+        let (x, y) = (x.to_usize().unwrap(), y.to_usize().unwrap());
+        let shape = self.shape();
+        if x >= shape[1] {
+            return Err(IndexError::X(x as i64));
+        }
+        if y >= shape[0] {
+            return Err(IndexError::Y(y as i64));
+        }
+        Ok(unsafe { self.uget([y, x]) })
+    }
+}
+
+#[cfg(feature = "ndarray")]
+impl<S: DataMut> GetMut2D for ArrayBase<S, Ix2> {
+    fn try_get_mut_xy<T: ToPrimitive>(
+        &mut self,
+        x: T,
+        y: T,
+    ) -> Result<&mut Self::Item, IndexError> {
+        let (x, y) = (x.to_usize().unwrap(), y.to_usize().unwrap());
+        {
+            let shape = self.shape();
+            if x >= shape[1] {
+                return Err(IndexError::X(x as i64));
+            }
+            if y >= shape[0] {
+                return Err(IndexError::Y(y as i64));
+            }
+        }
+        Ok(unsafe { self.uget_mut([y, x]) })
     }
 }
 
@@ -811,7 +850,6 @@ mod tests {
         assert_eq!(Err(IndexError::Y(7)), a.try_get_xy(5, 7));
     }
     #[test]
-    #[cfg(feature = "nightly")]
     fn test_copy_rect() {
         let mut a = vec![vec![3; 5]; 7];
         let r1 = RectRange::from_ranges(3..5, 2..6).unwrap();
@@ -820,7 +858,6 @@ mod tests {
         r1.into_iter().for_each(|p| assert_eq!(a.get_p(p), &80));
     }
     #[test]
-    #[cfg(feature = "nightly")]
     fn test_gen_rect() {
         let r = RectRange::zero_start(5, 7).unwrap();
         let b = vec![vec![80; 100]; 100];
@@ -876,5 +913,14 @@ mod tests {
         let r = RectRange::from_ranges(4..7, 3..7).unwrap();
         assert!(!r.is_horiz_edge((4, 5)));
         assert!(r.is_horiz_edge((5, 6)));
+    }
+
+    #[cfg(feature = "ndarray")]
+    #[test]
+    fn test_ndarray() {
+        use super::ndarray::arr2;
+        let a = arr2(&[[1, 2], [3, 4]]);
+        assert_eq!(a.get_xy(1, 0), &2);
+        assert!(a.try_get_xy(4, 0).is_err());
     }
 }
