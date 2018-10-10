@@ -557,10 +557,11 @@ pub trait Get2D {
 pub trait GetMut2D: Get2D {
     fn get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T) -> &mut Self::Item {
         self.try_get_mut_xy(x, y)
-            .expect("[Get2d::get] Invalid index")
+            .expect("[GetMut2d::get_mut_xy] Invalid index")
     }
     fn get_mut_p<T: ToPrimitive, P: IntoTuple2<T>>(&mut self, p: P) -> &mut Self::Item {
-        self.try_get_mut_p(p).expect("[Get2d::get_p] Invalid index")
+        self.try_get_mut_p(p)
+            .expect("[GetMut2d::get_mut_p] Invalid index")
     }
     fn try_get_mut_xy<T: ToPrimitive>(&mut self, x: T, y: T)
         -> Result<&mut Self::Item, IndexError>;
