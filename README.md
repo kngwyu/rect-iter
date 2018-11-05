@@ -5,7 +5,12 @@
 
 This library provides general iterator for enumerating Rectangle.
 
-There are many libralies which handle 2D rectangle area, so I think it's convinient if we can use those libraries in the same way.
+There are many libralies which handle 2D rectangle area, so I thought it's convinient if we can use those libraries in the same way.
+
+And, here's the result.
+
+Currently, [ndarray](https://crates.io/crates/ndarray), [image](https://crates.io/crates/image),
+[euclid](https://crates.io/crates/euclid) are supported.
 
 # Example
 
