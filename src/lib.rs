@@ -574,17 +574,18 @@ pub trait GetMut2D: Get2D {
     }
 }
 
+fn try_to_usize<T: ToPrimitive>(
+    x: T,
+    err: impl Fn(i64) -> IndexError,
+) -> Result<usize, IndexError> {
+    x.to_usize().ok_or_else(|| err(x.to_i64().unwrap()))
+}
+
 impl<D> Get2D for Vec<Vec<D>> {
     type Item = D;
     fn try_get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Result<&Self::Item, IndexError> {
-        let x = match x.to_usize() {
-            Some(x) => x,
-            None => return Err(IndexError::X(x.to_i64().unwrap())),
-        };
-        let y = match y.to_usize() {
-            Some(y) => y,
-            None => return Err(IndexError::Y(y.to_i64().unwrap())),
-        };
+        let x = try_to_usize(x, IndexError::X)?;
+        let y = try_to_usize(y, IndexError::Y)?;
         let line = match self.get(y) {
             Some(l) => l,
             None => return Err(IndexError::Y(y as i64)),
@@ -602,14 +603,8 @@ impl<D> GetMut2D for Vec<Vec<D>> {
         x: T,
         y: T,
     ) -> Result<&mut Self::Item, IndexError> {
-        let x = match x.to_usize() {
-            Some(x) => x,
-            None => return Err(IndexError::X(x.to_i64().unwrap())),
-        };
-        let y = match y.to_usize() {
-            Some(y) => y,
-            None => return Err(IndexError::Y(y.to_i64().unwrap())),
-        };
+        let x = try_to_usize(x, IndexError::X)?;
+        let y = try_to_usize(y, IndexError::Y)?;
         let line = match self.get_mut(y) {
             Some(l) => l,
             None => return Err(IndexError::Y(y as i64)),
@@ -705,6 +700,11 @@ where
 }
 
 #[cfg(feature = "image")]
+fn try_to_u32<T: ToPrimitive>(x: T, err: impl Fn(i64) -> IndexError) -> Result<u32, IndexError> {
+    x.to_u32().ok_or_else(|| err(x.to_i64().unwrap()))
+}
+
+#[cfg(feature = "image")]
 impl<P, C> Get2D for ImageBuffer<P, C>
 where
     P: Pixel + 'static,
@@ -713,7 +713,8 @@ where
 {
     type Item = P;
     fn try_get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Result<&Self::Item, IndexError> {
-        let (x, y) = (x.to_u32().unwrap(), y.to_u32().unwrap());
+        let x = try_to_u32(x, IndexError::X)?;
+        let y = try_to_u32(y, IndexError::Y)?;
         if x >= self.width() {
             return Err(IndexError::X(i64::from(x)));
         }
@@ -736,7 +737,8 @@ where
         x: T,
         y: T,
     ) -> Result<&mut Self::Item, IndexError> {
-        let (x, y) = (x.to_u32().unwrap(), y.to_u32().unwrap());
+        let x = try_to_u32(x, IndexError::X)?;
+        let y = try_to_u32(y, IndexError::Y)?;
         if x >= self.width() {
             return Err(IndexError::X(i64::from(x)));
         }
@@ -751,13 +753,16 @@ where
 impl<S: Data> Get2D for ArrayBase<S, Ix2> {
     type Item = S::Elem;
     fn try_get_xy<T: ToPrimitive>(&self, x: T, y: T) -> Result<&Self::Item, IndexError> {
-        let (x, y) = (x.to_usize().unwrap(), y.to_usize().unwrap());
-        let shape = self.shape();
-        if x >= shape[1] {
-            return Err(IndexError::X(x as i64));
-        }
-        if y >= shape[0] {
-            return Err(IndexError::Y(y as i64));
+        let x = try_to_usize(x, IndexError::X)?;
+        let y = try_to_usize(y, IndexError::Y)?;
+        {
+            let shape = self.shape();
+            if x >= shape[1] {
+                return Err(IndexError::X(x as i64));
+            }
+            if y >= shape[0] {
+                return Err(IndexError::Y(y as i64));
+            }
         }
         Ok(unsafe { self.uget([y, x]) })
     }
@@ -770,7 +775,8 @@ impl<S: DataMut> GetMut2D for ArrayBase<S, Ix2> {
         x: T,
         y: T,
     ) -> Result<&mut Self::Item, IndexError> {
-        let (x, y) = (x.to_usize().unwrap(), y.to_usize().unwrap());
+        let x = try_to_usize(x, IndexError::X)?;
+        let y = try_to_usize(y, IndexError::Y)?;
         {
             let shape = self.shape();
             if x >= shape[1] {
@@ -923,5 +929,6 @@ mod tests {
         let a = arr2(&[[1, 2], [3, 4]]);
         assert_eq!(a.get_xy(1, 0), &2);
         assert!(a.try_get_xy(4, 0).is_err());
+        assert!(a.try_get_xy(-1, 0).is_err());
     }
 }
