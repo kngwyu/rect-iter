@@ -292,24 +292,24 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
             y_range: inter(self.y_range.clone(), other.y_range.clone())?,
         })
     }
-    /// get the upper left corner(inclusive)
-    pub fn upper_left(&self) -> (T, T) {
+    /// get the lower left corner(inclusive)
+    pub fn lower_left(&self) -> (T, T) {
         (&self.x_range, &self.y_range).map(|r| r.start.clone())
     }
-    /// get the upper right corner(inclusive)
-    pub fn upper_right(&self) -> (T, T) {
+    /// get the lower right corner(inclusive)
+    pub fn lower_right(&self) -> (T, T) {
         let x = self.x_range.end.clone() - T::one();
         let y = self.y_range.start.clone();
         (x, y)
     }
-    /// get the lower left corner(inclusive)
-    pub fn lower_left(&self) -> (T, T) {
+    /// get the upper left corner(inclusive)
+    pub fn upper_left(&self) -> (T, T) {
         let x = self.x_range.start.clone();
         let y = self.y_range.end.clone() - T::one();
         (x, y)
     }
-    /// get the lower right corner(inclusive)
-    pub fn lower_right(&self) -> (T, T) {
+    /// get the upper right corner(inclusive)
+    pub fn upper_right(&self) -> (T, T) {
         (&self.x_range, &self.y_range).map(|r| r.end.clone() - T::one())
     }
     /// checks if the point is on the edge of the rectangle
@@ -920,6 +920,14 @@ mod tests {
         let r = RectRange::from_ranges(4..7, 3..7).unwrap();
         assert!(!r.is_horiz_edge((4, 5)));
         assert!(r.is_horiz_edge((5, 6)));
+    }
+    #[test]
+    fn test_corners() {
+        let r = RectRange::from_ranges(4..7, 3..7).unwrap();
+        assert_eq!(r.lower_left(), (4, 3));
+        assert_eq!(r.lower_right(), (6, 3));
+        assert_eq!(r.upper_left(), (4, 6));
+        assert_eq!(r.upper_right(), (6, 6));
     }
 
     #[cfg(feature = "ndarray")]
