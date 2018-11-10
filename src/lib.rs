@@ -43,7 +43,8 @@ use euclid::{point2, rect, vec2, TypedPoint2D, TypedRect, TypedVector2D};
 #[cfg(feature = "ndarray")]
 use ndarray::{ArrayBase, Data, DataMut, Ix2};
 
-use num_traits::cast::{FromPrimitive, ToPrimitive};
+use num_traits::cast::FromPrimitive;
+pub use num_traits::cast::ToPrimitive;
 use num_traits::Num;
 use tuple_map::TupleMap2;
 
