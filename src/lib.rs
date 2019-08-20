@@ -3,9 +3,9 @@
 //! ```rust
 //! extern crate rect_iter;
 //! extern crate euclid;
-//! use euclid::TypedVector2D;
+//! use euclid::Vector2D;
 //! use rect_iter::{RectRange, FromTuple2, GetMut2D};
-//! type MyVec = TypedVector2D<u64, ()>;
+//! type MyVec = Vector2D<u64, ()>;
 //! fn main() {
 //!     let range = RectRange::from_ranges(4..9, 5..10).unwrap();
 //!     let mut buffer = vec![vec![0.0; 100]; 100];
@@ -38,7 +38,7 @@ extern crate serde;
 use std::ops::{Deref, DerefMut, Range};
 
 #[cfg(feature = "euclid")]
-use euclid::{point2, rect, vec2, TypedPoint2D, TypedRect, TypedVector2D};
+use euclid::{point2, rect, vec2, Point2D, Rect, Vector2D};
 
 #[cfg(feature = "ndarray")]
 use ndarray::{ArrayBase, Data, DataMut, Ix2};
@@ -120,14 +120,14 @@ pub trait FromTuple2<T> {
 }
 
 #[cfg(feature = "euclid")]
-impl<T: Clone, U> IntoTuple2<T> for TypedPoint2D<T, U> {
+impl<T: Clone, U> IntoTuple2<T> for Point2D<T, U> {
     fn into_tuple2(self) -> (T, T) {
         (self.x, self.y)
     }
 }
 
 #[cfg(feature = "euclid")]
-impl<T: Clone, U> IntoTuple2<T> for TypedVector2D<T, U> {
+impl<T: Clone, U> IntoTuple2<T> for Vector2D<T, U> {
     fn into_tuple2(self) -> (T, T) {
         (self.x, self.y)
     }
@@ -140,15 +140,15 @@ impl<T> IntoTuple2<T> for (T, T) {
 }
 
 #[cfg(feature = "euclid")]
-impl<T: Copy, U> FromTuple2<T> for TypedPoint2D<T, U> {
-    fn from_tuple2(t: (T, T)) -> TypedPoint2D<T, U> {
+impl<T: Copy, U> FromTuple2<T> for Point2D<T, U> {
+    fn from_tuple2(t: (T, T)) -> Point2D<T, U> {
         point2(t.0, t.1)
     }
 }
 
 #[cfg(feature = "euclid")]
-impl<T: Clone, U> FromTuple2<T> for TypedVector2D<T, U> {
-    fn from_tuple2(t: (T, T)) -> TypedVector2D<T, U> {
+impl<T: Clone, U> FromTuple2<T> for Vector2D<T, U> {
+    fn from_tuple2(t: (T, T)) -> Vector2D<T, U> {
         vec2(t.0, t.1)
     }
 }
@@ -336,7 +336,7 @@ impl<T: Num + PartialOrd + Clone> RectRange<T> {
 
 impl<T: Num + PartialOrd + Copy> RectRange<T> {
     #[cfg(feature = "euclid")]
-    pub fn from_rect<U>(rect: TypedRect<T, U>) -> Option<RectRange<T>> {
+    pub fn from_rect<U>(rect: Rect<T, U>) -> Option<RectRange<T>> {
         let orig_x = rect.origin.x;
         let orig_y = rect.origin.y;
         RectRange::from_ranges(
@@ -345,7 +345,7 @@ impl<T: Num + PartialOrd + Copy> RectRange<T> {
         )
     }
     #[cfg(feature = "euclid")]
-    pub fn to_rect<U>(&self) -> TypedRect<T, U> {
+    pub fn to_rect<U>(&self) -> Rect<T, U> {
         let orig_x = self.x_range.start;
         let orig_y = self.y_range.start;
         rect(
