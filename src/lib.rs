@@ -822,7 +822,7 @@ mod tests {
     fn iter_test_rev() {
         let r = RectRange::from_ranges(4..7, 3..5).unwrap();
         let correct = [(4, 3), (5, 3), (6, 3), (4, 4), (5, 4), (6, 4)];
-        for (&c, t) in correct.into_iter().rev().zip(r.into_iter().rev()) {
+        for (&c, t) in correct.iter().rev().zip(r.into_iter().rev()) {
             assert_eq!(c, t);
         }
     }
